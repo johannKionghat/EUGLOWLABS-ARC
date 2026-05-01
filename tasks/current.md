@@ -1,138 +1,85 @@
-# Tâche en cours : INFRA-001 — Setup monorepo Turborepo
+# Tâche en cours : INFRA-007 — Hook `commit-msg` via lefthook
 
 ## Statut
-🟡 En cours — démarrée le 2026-05-01
+🟡 En cours — démarrée le 2026-05-02
 
 ## Objectif
-Initialiser la structure Turborepo du monorepo `euglowlabs-arc` avec pnpm workspaces et 5 packages placeholders (`arc-cli`, `arc-shared`, `arc-dashboard`, `arc-cloud`, `arc-agent`). Aucune logique métier — uniquement la plomberie permettant aux tâches suivantes (CLI-001, AGENT-001, DASH-001, CLOUD-001) de démarrer sur des fondations CI-vérifiées.
+Installer lefthook et configurer un hook `commit-msg` qui rejette tout message de commit ne respectant pas le format Conventional Commits **avec ID de tâche** (cf. `docs/04-conventions/naming.md`). Empêche en local les commits non conformes avant qu'ils ne polluent l'historique.
 
 ## Critères d'acceptation
-- [ ] `pnpm install` fonctionne sans warning
-- [ ] `pnpm build` passe sur les 5 packages (placeholders OK)
-- [ ] `pnpm test` lance Vitest sans erreur (0 test trouvé acceptable)
-- [ ] `pnpm lint` (Biome) passe à zéro erreur
-- [ ] `pnpm typecheck` passe sur tous les packages TS
-- [ ] `make -C packages/arc-agent build` produit un binaire Go
-- [ ] CI GitHub Actions verte sur la PR
+- [ ] `lefthook` est installé en devDependency racine
+- [ ] `lefthook.yml` versionné définit un hook `commit-msg`
+- [ ] Le hook rejette `chore: do stuff` (pas de scope, pas de TASK-ID) avec un message d'erreur lisible
+- [ ] Le hook rejette `feat(cli): add deploy command` (pas de TASK-ID)
+- [ ] Le hook accepte `feat(cli): add deploy command [CLI-042]`
+- [ ] Le hook accepte les merge commits / revert / le format de squash GitHub `... [TASK-ID] (#NN)`
+- [ ] Script `prepare` installe les hooks automatiquement après `pnpm install`
+- [ ] CI reste verte (le hook ne tourne pas en CI mais l'install ne casse rien)
+- [ ] PR mergée sur main
 
 ## Fichiers concernés (estimation)
-
-**Racine**
-- `package.json` (création)
-- `pnpm-workspace.yaml` (création)
-- `turbo.json` (création)
-- `tsconfig.base.json` (création)
-- `biome.json` (création)
-- `.npmrc` (création)
-- `.editorconfig` (création)
-- `.tool-versions` (création)
-
-**Packages TS**
-- `packages/arc-cli/{package.json,tsconfig.json,src/index.ts}` (création)
-- `packages/arc-shared/{package.json,tsconfig.json,src/index.ts}` (création)
-- `packages/arc-dashboard/{package.json,tsconfig.json,src/index.ts}` (création)
-- `packages/arc-cloud/{package.json,tsconfig.json,src/index.ts}` (création)
-
-**Package Go**
-- `packages/arc-agent/{Makefile,go.mod,cmd/agent/main.go}` (création)
-
-**CI**
-- `.github/workflows/ci.yml` (création)
+- `package.json` (modification : devDep `lefthook`, script `prepare`)
+- `lefthook.yml` (création)
+- `scripts/validate-commit-msg.mjs` (création — petit script Node de validation regex avec messages d'erreur clairs)
+- `docs/04-conventions/git-workflow.md` (modification : section "Hooks locaux" avec mention lefthook)
 
 ## ADRs liés
-- ADR-0001 — Monorepo Turborepo + pnpm workspaces
-- ADR-0002 — Bun runtime CLI (placeholder seulement, build complet → CLI-025)
-- ADR-0003 — Go pour ARC Agent (skeleton seulement)
-- ADR-0004 — Next.js 15 (placeholders, pas de pages réelles)
+Aucun ADR à créer — outillage local pur, pas de décision structurante.
 
 ## Conventions à respecter
-- `docs/04-conventions/coding-style.md` — section TypeScript (strict, noUncheckedIndexedAccess)
-- `docs/04-conventions/git-workflow.md` — branche `feat/INFRA-001-setup-monorepo`, squash merge
-- `docs/04-conventions/naming.md` — packages `@euglowlabs/arc-*`, scope `INFRA`
-- `docs/04-conventions/pr-review.md` — auto-revue avant PR
+- `docs/04-conventions/naming.md` — section "Commits" : format `<type>(<scope>): <description> [<TASK-ID>]`
+- `docs/04-conventions/git-workflow.md` — règle "hooks jamais skippés" (`--no-verify` interdit sauf incident)
+- `docs/04-conventions/coding-style.md` — script Node : `import` ordonnés, pas de `any`
 
 ## Hors scope (NE PAS faire)
-- Pas de logique métier (pas de schémas zod réels, pas de commandes CLI, pas de pages Next.js, pas de handlers HTTP Go)
-- Pas de dépendances applicatives (zod, drizzle, clipanion, clerk, chi, gorilla/websocket, …)
-- Pas de Dockerfile applicatif (reporté à DASH-014, AGENT-013)
-- Pas de configuration Ansible (reporté à CLI-013)
-- Pas d'intégration Coolify (reporté à CLI-021)
-- Pas de Changesets ni de release npm (reporté à INFRA-008, INFRA-010)
-- Pas de hooks lefthook ni `commit-msg` (reporté à INFRA-007)
+- Pas de hook `pre-commit` (lint-staged, format) — autre tâche si besoin (à inscrire au backlog)
+- Pas de hook `pre-push` (run tests) — risque de friction, à débattre dans une tâche dédiée
+- Pas d'intégration commitlint (lefthook + petit script Node suffit, évite une dépendance lourde)
+- Pas de modification du workflow CI (les hooks sont locaux uniquement, par design)
 
 ## Plan d'implémentation
 
-### Sous-tâche 1 : Fondations racine (workspace + tooling)
-- **Fichiers** : `package.json`, `pnpm-workspace.yaml`, `.npmrc`, `.editorconfig`, `.tool-versions`
-- **Effort estimé** : 15 min
-- **Détail** : `package.json` racine en `private: true` avec scripts `build`, `test`, `lint`, `typecheck` qui délèguent à `turbo run`. `pnpm-workspace.yaml` pointe sur `packages/*`. `.tool-versions` fixe Node ≥20, Bun, Go ≥1.22, pnpm. `.editorconfig` LF + 2 spaces TS / tabs Go.
+### Sous-tâche 1 : Choix outillage + ajout dépendance
+- **Fichiers** : `package.json`
+- **Effort estimé** : 5 min
+- **Détail** : Ajouter `lefthook` en `devDependencies`. Ajouter un script `prepare` racine qui exécute `lefthook install` (déclenché automatiquement par `pnpm install`). Choix : pas de commitlint (évite une deuxième couche de tooling) ; on valide avec un petit script Node maison qui produit des messages d'erreur clairs.
 
-### Sous-tâche 2 : Pipelines Turbo + TypeScript base + Biome
-- **Fichiers** : `turbo.json`, `tsconfig.base.json`, `biome.json`
+### Sous-tâche 2 : Script de validation Node
+- **Fichiers** : `scripts/validate-commit-msg.mjs`
 - **Effort estimé** : 20 min
-- **Détail** : `turbo.json` définit pipelines `build`, `test`, `lint`, `typecheck` avec `dependsOn: ["^build"]` et caches. `tsconfig.base.json` strict + `noUncheckedIndexedAccess` + `target: ES2022` + `module: ESNext` + `moduleResolution: Bundler`. `biome.json` formatter + linter racine, ignore `dist/`, `.next/`, `.turbo/`.
+- **Détail** : Lit le fichier passé en argument (`$1` = `.git/COMMIT_EDITMSG`), récupère la première ligne non vide. Bypass pour `Merge ...`, `Revert ...`, `fixup!`, `squash!`. Sinon valide via regex `^(feat|fix|refactor|chore|docs|test|spike)(\([a-z0-9-]+\))?: .+ \[[A-Z]+-\d+\]( \(#\d+\))?$`. En cas d'échec, affiche un message d'erreur explicite avec exemple correct + types autorisés + lien vers `docs/04-conventions/naming.md`. Exit code 1 sur erreur.
 
-### Sous-tâche 3 : Packages TS placeholders (cli, shared)
-- **Fichiers** : `packages/arc-cli/{package.json,tsconfig.json,src/index.ts}`, idem pour `arc-shared`
-- **Effort estimé** : 15 min
-- **Détail** : `package.json` `@euglowlabs/arc-cli` avec scripts `build` (`tsc -p tsconfig.json`), `test` (`vitest run`), `typecheck`. `tsconfig.json` étend la base, `outDir: dist`. `src/index.ts` minimal (`export const version = "0.0.0";`). Idem `arc-shared`.
-
-### Sous-tâche 4 : Packages TS placeholders (dashboard, cloud)
-- **Fichiers** : `packages/arc-dashboard/*`, `packages/arc-cloud/*`
-- **Effort estimé** : 15 min
-- **Détail** : Mêmes patterns que sous-tâche 3 mais sans bootstrap Next.js réel (juste un `src/index.ts` placeholder + `package.json` avec scripts cohérents). Le bootstrap Next.js complet appartient à DASH-001 et CLOUD-001.
-
-### Sous-tâche 5 : Skeleton Go arc-agent
-- **Fichiers** : `packages/arc-agent/{Makefile,go.mod,cmd/agent/main.go}`
-- **Effort estimé** : 15 min
-- **Détail** : `go.mod` `module github.com/euglowlabs/arc-agent`, Go 1.22. `cmd/agent/main.go` minimal qui imprime la version. `Makefile` cibles `build`, `test`, `clean`, avec cross-compile linux/amd64 + linux/arm64. Pas de dépendances tierces.
-
-### Sous-tâche 6 : Vitest workspace + scripts racine
-- **Fichiers** : `vitest.workspace.ts` (racine), ajustement `package.json` racine
+### Sous-tâche 3 : Configuration lefthook.yml
+- **Fichiers** : `lefthook.yml`
 - **Effort estimé** : 10 min
-- **Détail** : `vitest.workspace.ts` agrège les configs Vitest des 4 packages TS. Script `test` racine = `vitest run` (et délégation Go via `pnpm --filter` si applicable). Vérifier `pnpm test` ne lève pas d'erreur même sans aucun test.
+- **Détail** : Hook `commit-msg` qui invoque `node scripts/validate-commit-msg.mjs {1}`. Pas d'autre hook configuré dans cette tâche. Configurer `skip_output: meta` pour réduire le bruit.
 
-### Sous-tâche 7 : CI GitHub Actions
-- **Fichiers** : `.github/workflows/ci.yml`
-- **Effort estimé** : 20 min
-- **Détail** : Job `node` (matrix Node 20) : checkout → pnpm/action-setup → install → `pnpm lint` → `pnpm typecheck` → `pnpm test` → `pnpm build`. Job `go` séparé : checkout → setup-go → `make -C packages/arc-agent build` + `make -C packages/arc-agent test`. Trigger sur `pull_request` + `push: main`.
-
-### Sous-tâche 8 : Vérification finale + commit
+### Sous-tâche 4 : Tests manuels du hook
 - **Effort estimé** : 15 min
-- **Détail** : Lancer en local `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, et `make -C packages/arc-agent build`. Vérifier qu'il ne reste pas de warnings. Préparer un commit Conventional Commits unique : `chore(repo): bootstrap turborepo monorepo [INFRA-001]`. Push sur branche `feat/INFRA-001-setup-monorepo`.
+- **Détail** : Faire 5 essais de commit (sans les pousser) pour valider :
+  1. ❌ `git commit -m "wip"` → rejeté
+  2. ❌ `git commit -m "feat: do thing"` → rejeté (pas de TASK-ID)
+  3. ❌ `git commit -m "feat(cli): add x"` → rejeté
+  4. ✅ `git commit -m "feat(cli): add x [CLI-001]"` → accepté
+  5. ✅ Merge commit / Revert / squash GitHub style → accepté
+  Annuler chaque commit accepté avec `git reset --soft HEAD~1`.
+
+### Sous-tâche 5 : Documentation conventions
+- **Fichiers** : `docs/04-conventions/git-workflow.md`
+- **Effort estimé** : 10 min
+- **Détail** : Ajouter section "Hooks locaux" expliquant l'installation auto via `pnpm install`, la liste des hooks actifs (`commit-msg`), comment bypass exceptionnel (`LEFTHOOK=0` ou `--no-verify` interdit par convention sauf incident documenté).
+
+### Sous-tâche 6 : Vérification + commit + PR
+- **Effort estimé** : 15 min
+- **Détail** : `pnpm install` (vérifie que `prepare` installe lefthook). Tester un commit valide pour confirmer. Branche `feat/INFRA-007-lefthook-commit-msg`. Commit `chore(repo): add lefthook commit-msg hook [INFRA-007]`. Push + PR + merge.
 
 ## Scratchpad
 
-### Sous-tâches réalisées (2026-05-02)
-- [x] **1 — Fondations racine** : `package.json`, `pnpm-workspace.yaml`, `.npmrc`, `.editorconfig`, `.tool-versions`
-- [x] **2 — Pipelines** : `turbo.json` (build/test/lint/typecheck/clean), `tsconfig.base.json` (strict + noUncheckedIndexedAccess + verbatimModuleSyntax), `biome.json` (formatter + linter racine, ignore arc-agent)
-- [x] **3 — Packages TS (cli, shared)** : placeholders `src/index.ts`, `arc-cli` consomme `@euglowlabs/arc-shared` via `workspace:*`
-- [x] **4 — Packages TS (dashboard, cloud)** : placeholders alignés
-- [x] **5 — Skeleton Go** : `go.mod` (Go 1.23), `cmd/agent/main.go`, `Makefile` (build + cross-compile linux/amd64+arm64)
-- [x] **6 — Vitest** : pas de workspace racine, chaque package a `vitest run --passWithNoTests` orchestré par Turbo
-- [x] **7 — CI GitHub Actions** : job Node (pnpm install → lint → typecheck → test → build) + job Go (vet → test → build)
-- [ ] **8 — Vérification finale + commit** : à exécuter par l'utilisateur (cf. ci-dessous)
+### Décisions ouvertes — à valider avant de coder
+- **lefthook vs husky** : lefthook choisi (binaire Go natif, plus rapide, config YAML déclarative, parallèle). Husky est plus connu mais tout en JS et plus lent.
+- **Validation par script Node maison vs commitlint** : script Node maison choisi (zero-dep, messages d'erreur sur-mesure, pas de fichier de config supplémentaire). commitlint serait surdimensionné pour un seul format.
+- **Format regex strict** : on n'autorise PAS de message multi-lignes spéciaux ; le body du commit reste libre, seule la première ligne est validée.
 
-### Décisions prises
-- **Pas de Vitest workspace** racine : chaque package délègue à Turbo. Évite les surprises de discovery quand un package n'a pas de tests.
-- **Biome racine seul** : un seul `biome.json`, pas de config par package. arc-agent (Go) ignoré explicitement.
-- **`workspace:*`** pour les deps internes : remplacé au publish par Changesets (INFRA-008).
-- **TypeScript project references retirées** : Turbo `dependsOn: ["^build"]` garantit l'ordre. Plus simple à maintenir.
-- **Versions épinglées** : Turbo 2.3.3, Vitest 2.1.8, Biome 1.9.4, TypeScript 5.6.3, Node 20.18.1, pnpm 9.12.0, Go 1.23.
-
-### Vérifications restantes (à lancer côté utilisateur avant commit)
-```bash
-pnpm install
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-make -C packages/arc-agent build
-make -C packages/arc-agent test
-```
-
-### Commit prévu
-```
-chore(repo): bootstrap turborepo monorepo [INFRA-001]
-```
-Branche : `feat/INFRA-001-setup-monorepo`
+### Notes
+- Le script Node tourne avec le Node système (≥20 acté dans `.tool-versions`). Pas besoin de Bun ici — le hook doit fonctionner même si Bun n'est pas installé.
+- Lefthook s'installe via npm/pnpm, pas besoin de binaire séparé.

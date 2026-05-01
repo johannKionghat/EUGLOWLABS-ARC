@@ -13,13 +13,13 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 ## Phase 0 — Setup monorepo & tooling (semaine 1)
 
-- 🟡 INFRA-001 — Setup monorepo Turborepo + pnpm workspaces (5 packages placeholders)
-- ⬜ INFRA-002 — Config Biome (lint + format) racine + scripts pnpm
-- ⬜ INFRA-003 — Config tsconfig.base.json strict + tsconfig par package
-- ⬜ INFRA-004 — Config Vitest racine + workspace + script `pnpm test`
-- ⬜ INFRA-005 — `.gitignore`, `.editorconfig`, `.nvmrc`, `.tool-versions`
-- ⬜ INFRA-006 — GitHub Actions CI : lint + typecheck + test sur PR
-- ⬜ INFRA-007 — Hook `commit-msg` (Conventional Commits + TASK-ID) via lefthook
+- ✅ INFRA-001 — Setup monorepo Turborepo + pnpm workspaces (5 packages placeholders) (2026-05-02)
+- ✅ INFRA-002 — Config Biome (lint + format) racine + scripts pnpm *(absorbée par INFRA-001)*
+- ✅ INFRA-003 — Config tsconfig.base.json strict + tsconfig par package *(absorbée par INFRA-001)*
+- ✅ INFRA-004 — Config Vitest par package (orchestré par Turbo, pas de workspace) *(absorbée par INFRA-001)*
+- ✅ INFRA-005 — `.gitignore`, `.editorconfig`, `.tool-versions` *(absorbée par INFRA-001)*
+- ✅ INFRA-006 — GitHub Actions CI : Node + Go *(absorbée par INFRA-001)*
+- 🟡 INFRA-007 — Hook `commit-msg` (Conventional Commits + TASK-ID) via lefthook
 - ⬜ INFRA-008 — Setup Changesets pour versionning packages npm
 - ⬜ INFRA-009 — README racine (présentation produit + quickstart contributeur)
 - ⬜ INFRA-010 — Workflow GitHub Actions de release (publish npm dry-run)

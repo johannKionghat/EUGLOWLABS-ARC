@@ -1,0 +1,12 @@
+# Local git hooks for EuglowLabs ARC.
+# Installed automatically by `pnpm install` via the `prepare` script.
+# See docs/04-conventions/git-workflow.md for policy.
+
+skip_output:
+  - meta
+  - skips
+
+commit-msg:
+  commands:
+    validate-format:
+      run: node scripts/validate-commit-msg.mjs {1}

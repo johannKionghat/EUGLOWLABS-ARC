@@ -16,6 +16,20 @@
 - Pas de **force-push sur `main`** ni sur les branches partagées
 - Les hooks (`pre-commit`, `commit-msg`) ne sont **jamais skippés** (`--no-verify` interdit sauf incident exceptionnel documenté)
 
+## Hooks locaux
+
+Gérés par [lefthook](https://github.com/evilmartians/lefthook). Installés automatiquement par le script `prepare` lors du `pnpm install`. Configuration : `lefthook.yml` à la racine.
+
+| Hook | Rôle | Implémentation |
+|---|---|---|
+| `commit-msg` | Valide le format Conventional Commits + `[TASK-ID]` | `scripts/validate-commit-msg.mjs` (Node, zero-dep) |
+
+Le hook accepte sans validation : `Merge ...`, `Revert ...`, `fixup!`, `squash!`, `amend!` ainsi que le suffixe `(#NN)` ajouté par les squash merges GitHub.
+
+**Réinstaller manuellement** si nécessaire : `pnpm exec lefthook install`.
+
+**Bypass exceptionnel** : `--no-verify` est interdit par convention. Si un hook bloque à tort, ouvrir une tâche pour corriger le hook plutôt que le contourner.
+
 ## Création d'une branche
 
 ```bash
