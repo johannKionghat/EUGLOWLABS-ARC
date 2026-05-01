@@ -13,7 +13,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 ## Phase 0 — Setup monorepo & tooling (semaine 1)
 
-- ⬜ INFRA-001 — Setup monorepo Turborepo + pnpm workspaces (5 packages placeholders)
+- 🟡 INFRA-001 — Setup monorepo Turborepo + pnpm workspaces (5 packages placeholders)
 - ⬜ INFRA-002 — Config Biome (lint + format) racine + scripts pnpm
 - ⬜ INFRA-003 — Config tsconfig.base.json strict + tsconfig par package
 - ⬜ INFRA-004 — Config Vitest racine + workspace + script `pnpm test`

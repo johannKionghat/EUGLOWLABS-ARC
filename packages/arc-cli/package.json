@@ -1,0 +1,26 @@
+{
+  "name": "@euglowlabs/arc-cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "EuglowLabs ARC CLI — bootstrap and operate your self-hosted ARC stack.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "arc": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist .turbo"
+  },
+  "dependencies": {
+    "@euglowlabs/arc-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "rimraf": "6.0.1",
+    "typescript": "5.6.3",
+    "vitest": "2.1.8"
+  }
+}

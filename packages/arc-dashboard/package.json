@@ -1,0 +1,24 @@
+{
+  "name": "@euglowlabs/arc-dashboard",
+  "version": "0.0.0",
+  "private": true,
+  "description": "EuglowLabs ARC Dashboard — supervision UI (Next.js 15). Placeholder; bootstrapped in DASH-001.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist .turbo"
+  },
+  "dependencies": {
+    "@euglowlabs/arc-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "rimraf": "6.0.1",
+    "typescript": "5.6.3",
+    "vitest": "2.1.8"
+  }
+}
