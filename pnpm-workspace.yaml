@@ -1,0 +1,5 @@
+packages:
+  - "packages/arc-cli"
+  - "packages/arc-shared"
+  - "packages/arc-dashboard"
+  - "packages/arc-cloud"

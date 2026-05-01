@@ -9,10 +9,11 @@ out/
 .next/
 .turbo/
 
-# Bun compiled binaries
-*.exe
-arc
-arc-agent
+# Compiled binaries (root-only, scoped to avoid matching package directories)
+/arc
+/arc.exe
+/arc-agent
+/arc-agent.exe
 
 # Go
 vendor/
@@ -48,3 +49,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Claude Code local settings
+.claude/settings.local.json
