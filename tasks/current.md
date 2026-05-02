@@ -1,32 +1,25 @@
-# Tâche en cours : CLI-011 — `VPSAdapter` via node-ssh + Hetzner SDK
+# Tâche en cours : CLI-012 — Commande `arc deploy`
 
 ## Statut
 🟡 En cours — démarrée le 2026-05-02
 
 ## Objectif
-Deuxième impl concrète de `ExecutionAdapter` (CLI-009). SSH via `node-ssh`, SFTP upload, lecture FS distante via `cat`. Provisioning Hetzner extrait dans `provisionHetzner(provider)` séparé.
+Orchestrer le déploiement : load config → select adapter → render 4 templates (prod, sandbox, agents, env) → write sur l'adapter → `docker compose up -d`. Ansible reste pour CLI-013.
 
 ## Critères
-- [ ] `VPSAdapter` implémente `ExecutionAdapter` via node-ssh
-- [ ] `provisionHetzner(provider)` skeleton (création VPS via SDK)
-- [ ] `describe(): "vps:<host>"`
-- [ ] Tests structurels (pas de E2E SSH — AGENT-012)
-- [ ] Lint/typecheck/build verts, CI verte, PR mergée
-
-## ADRs
-ADR-0009 (impl VPS), ADR-0001, ADR-0002
+- [ ] `arc deploy` commande clipanion, flags `--out-dir` (défaut `./.arc/generated`)
+- [ ] Loads `arc.config.yml` via `loadArcConfig`
+- [ ] Sélectionne adapter selon `target` (Local/VPS)
+- [ ] Render des 4 templates + write via `adapter.copyFile` (en passant par tmp file local)
+- [ ] Run `docker compose -f f1 -f f2 -f f3 --env-file .env up -d`
+- [ ] Tests via `MockAdapter`
+- [ ] CI verte, PR mergée
 
 ## Hors scope
-E2E SSH/Hetzner (AGENT-012), mocking complet node-ssh, commande clipanion (CLI-012), lifecycle complexe.
+Ansible (CLI-013), state management (CLI-014), provisioning auto Hetzner (CLI-023), Cloudflare Tunnel (CLI-024).
 
 ## Plan
-1. Deps `node-ssh` + Hetzner SDK
-2. `VPSAdapter` lazy connect
-3. `provisionHetzner` skeleton
-4. Tests structurels
-5. Vérif + commit + PR
-
-## Scratchpad
-- Lazy connect
-- `provisionHetzner` séparé du VPSAdapter
-- Tests minimaux (E2E reportés AGENT-012)
+1. `deploy.ts` orchestrator (cfg, adapter, opts) → 4 fichiers + compose up (20 min)
+2. `DeployCommand` clipanion + wiring (15 min)
+3. Tests via MockAdapter (15 min)
+4. Vérif + commit + PR (10 min)

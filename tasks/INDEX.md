@@ -38,8 +38,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-008 — Génération template `docker-compose.agents.yml` (OpenClaw + DeepAgents) (2026-05-02)
 - ✅ CLI-009 — Adapter abstrait `ExecutionAdapter` interface (cf. ADR-0009) (2026-05-02)
 - ✅ CLI-010 — `LocalAdapter` via execa (exec, copyFile, stream stdout) (2026-05-02)
-- 🟡 CLI-011 — `VPSAdapter` via node-ssh + Hetzner SDK (provisioning, exec distant)
-- ⬜ CLI-012 — Commande `arc deploy` orchestrant adapter + Ansible playbooks
+- ✅ CLI-011 — `VPSAdapter` via node-ssh + Hetzner SDK (provisioning, exec distant) (2026-05-02)
+- 🟡 CLI-012 — Commande `arc deploy` orchestrant adapter + Ansible playbooks
 - ⬜ CLI-013 — Intégration Ansible : invocation playbook + stream output
 - ⬜ CLI-014 — State management `.infra/state.json` (lecture/écriture/diff)
 - ⬜ CLI-015 — Commande `arc status` (health check via state + ping services)
