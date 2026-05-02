@@ -1,24 +1,19 @@
-# Tâche : CLI-013 — Intégration Ansible
+# Tâche : CLI-014 — State management `.infra/state.json`
 
 ## Statut
 🟡 En cours — 2026-05-02
 
 ## Objectif
-Wrapper TS qui invoque `ansible-playbook` via l'adapter et stream son output ligne par ligne. Pas de playbooks complets (rôles hardening/docker/coolify reportés à des tâches dédiées) — juste l'API d'invocation + skeleton de playbook + tests.
+Source de vérité local de ce qui a été déployé. Lecture, écriture, diff. Spec-infra §5.3 layer "State `.infra/state.json`".
 
 ## Critères
-- [ ] `runAnsiblePlaybook(adapter, playbookPath, opts)` retourne `{ exitCode, durationMs }`
-- [ ] Forward des `extraVars` et `inventory`
-- [ ] Stream output via callback
-- [ ] Skeleton `ansible/playbook.yml` minimal versionné
-- [ ] Tests MockAdapter
+- [ ] Schéma zod du state (project, lastDeploy, services, files written)
+- [ ] `readState(path)`, `writeState(path, state)`, `diffState(prev, next)`
+- [ ] Tests sur tmpdir
 - [ ] CI verte, PR mergée
 
-## Hors scope
-Rôles Ansible complets, exécution réelle d'Ansible en CI, intégration dans `arc deploy` (future task), Galaxy.
-
 ## Plan
-1. `src/ansible/run.ts` (15 min)
-2. Skeleton `ansible/playbook.yml` à la racine du package (5 min)
-3. Tests MockAdapter (10 min)
-4. Vérif + commit + PR (10 min)
+1. Schéma + types (10 min)
+2. read/write/diff (20 min)
+3. Tests (15 min)
+4. Vérif + PR (10 min)
