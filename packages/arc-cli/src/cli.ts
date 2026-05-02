@@ -4,6 +4,7 @@ import type { BaseContext } from "clipanion";
 import { DeployCommand } from "./commands/deploy.js";
 import { HelpCommand } from "./commands/help.js";
 import { InitCommand } from "./commands/init.js";
+import { LogsCommand } from "./commands/logs.js";
 import { StatusCommand } from "./commands/status.js";
 import { VersionCommand } from "./commands/version.js";
 import { VERSION } from "./version.js";
@@ -27,6 +28,7 @@ export function buildCli(): Cli<BaseContext> {
   cli.register(InitCommand);
   cli.register(DeployCommand);
   cli.register(StatusCommand);
+  cli.register(LogsCommand);
 
   return cli;
 }
