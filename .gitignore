@@ -8,6 +8,7 @@ build/
 out/
 .next/
 .turbo/
+packages/*/bin/
 
 # Compiled binaries (root-only, scoped to avoid matching package directories)
 /arc
