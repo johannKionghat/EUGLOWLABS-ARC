@@ -45,8 +45,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-015 — Commande `arc status` (health check via state + ping services) (2026-05-02)
 - ✅ CLI-016 — Commande `arc logs <service>` (tail Docker logs via SSH ou local) (2026-05-02)
 - ✅ CLI-017 — Commande `arc restart <service>` (2026-05-02)
-- 🟡 CLI-018 — Commande `arc backup` (pg_dumpall + snapshots volumes)
-- ⬜ CLI-019 — Upload backups vers Cloudflare R2 via rclone wrapper
+- ✅ CLI-018 — Commande `arc backup` (pg_dumpall + snapshots volumes) (2026-05-02)
+- 🟡 CLI-019 — Upload backups vers Cloudflare R2 via rclone wrapper
 - ⬜ CLI-020 — Commande `arc restore <backup-id>` avec liste interactive
 - ⬜ CLI-021 — Commande `arc project add <name>` (Coolify API + create DB)
 - ⬜ CLI-022 — Commande `arc project list` + `arc project deploy <name>`
