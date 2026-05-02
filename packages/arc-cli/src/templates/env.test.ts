@@ -29,6 +29,7 @@ describe("generateEnvFile", () => {
     const out = generateEnvFile(sampleConfig());
     expect(out).toContain("JWT_SECRET=__REPLACE_ME__");
     expect(out).toContain("POSTGRES_PASSWORD=__REPLACE_ME__");
+    expect(out).toContain("CODE_SERVER_PASSWORD=__REPLACE_ME__");
   });
 
   it("contains no unresolved eta placeholders", () => {
