@@ -1,0 +1,13 @@
+# EuglowLabs ARC — Ansible playbook skeleton.
+#
+# Roles are introduced in dedicated future tasks (hardening, docker,
+# coolify, ai-stack, sandbox, backups). For now this file documents
+# the entry point that `runAnsiblePlaybook` expects.
+#
+# See spec-infra §5.2 (3-layer stack) and §16 Phase B.
+---
+- name: arc bootstrap
+  hosts: all
+  become: true
+  gather_facts: true
+  roles: []

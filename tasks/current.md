@@ -1,25 +1,24 @@
-# Tâche en cours : CLI-012 — Commande `arc deploy`
+# Tâche : CLI-013 — Intégration Ansible
 
 ## Statut
-🟡 En cours — démarrée le 2026-05-02
+🟡 En cours — 2026-05-02
 
 ## Objectif
-Orchestrer le déploiement : load config → select adapter → render 4 templates (prod, sandbox, agents, env) → write sur l'adapter → `docker compose up -d`. Ansible reste pour CLI-013.
+Wrapper TS qui invoque `ansible-playbook` via l'adapter et stream son output ligne par ligne. Pas de playbooks complets (rôles hardening/docker/coolify reportés à des tâches dédiées) — juste l'API d'invocation + skeleton de playbook + tests.
 
 ## Critères
-- [ ] `arc deploy` commande clipanion, flags `--out-dir` (défaut `./.arc/generated`)
-- [ ] Loads `arc.config.yml` via `loadArcConfig`
-- [ ] Sélectionne adapter selon `target` (Local/VPS)
-- [ ] Render des 4 templates + write via `adapter.copyFile` (en passant par tmp file local)
-- [ ] Run `docker compose -f f1 -f f2 -f f3 --env-file .env up -d`
-- [ ] Tests via `MockAdapter`
+- [ ] `runAnsiblePlaybook(adapter, playbookPath, opts)` retourne `{ exitCode, durationMs }`
+- [ ] Forward des `extraVars` et `inventory`
+- [ ] Stream output via callback
+- [ ] Skeleton `ansible/playbook.yml` minimal versionné
+- [ ] Tests MockAdapter
 - [ ] CI verte, PR mergée
 
 ## Hors scope
-Ansible (CLI-013), state management (CLI-014), provisioning auto Hetzner (CLI-023), Cloudflare Tunnel (CLI-024).
+Rôles Ansible complets, exécution réelle d'Ansible en CI, intégration dans `arc deploy` (future task), Galaxy.
 
 ## Plan
-1. `deploy.ts` orchestrator (cfg, adapter, opts) → 4 fichiers + compose up (20 min)
-2. `DeployCommand` clipanion + wiring (15 min)
-3. Tests via MockAdapter (15 min)
+1. `src/ansible/run.ts` (15 min)
+2. Skeleton `ansible/playbook.yml` à la racine du package (5 min)
+3. Tests MockAdapter (10 min)
 4. Vérif + commit + PR (10 min)
