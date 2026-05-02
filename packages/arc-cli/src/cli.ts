@@ -1,6 +1,7 @@
 import { Builtins, Cli } from "clipanion";
 import type { BaseContext } from "clipanion";
 
+import { HelpCommand } from "./commands/help.js";
 import { VersionCommand } from "./commands/version.js";
 import { VERSION } from "./version.js";
 
@@ -17,7 +18,7 @@ export function buildCli(): Cli<BaseContext> {
     binaryVersion: VERSION,
   });
 
-  cli.register(Builtins.HelpCommand);
+  cli.register(HelpCommand);
   cli.register(Builtins.VersionCommand);
   cli.register(VersionCommand);
 

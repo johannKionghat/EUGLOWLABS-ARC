@@ -28,8 +28,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 ## Phase 1 — CLI MVP (semaines 2-4)
 
-- 🟡 CLI-001 — Squelette clipanion + commande `arc version`
-- ⬜ CLI-002 — Commande `arc help` + branding ASCII
+- ✅ CLI-001 — Squelette clipanion + commande `arc version` (2026-05-02)
+- 🟡 CLI-002 — Commande `arc help` + branding ASCII
 - ⬜ CLI-003 — Schéma zod de `arc.config.yml` (dans `arc-shared`)
 - ⬜ CLI-004 — Loader `arc.config.yml` avec validation zod et messages d'erreur clairs
 - ⬜ CLI-005 — Commande `arc init` interactive (@clack/prompts) — questions de base

@@ -1,92 +1,80 @@
-# Tâche en cours : CLI-001 — Squelette clipanion + commande `arc version`
+# Tâche en cours : CLI-002 — Commande `arc help` + branding ASCII
 
 ## Statut
 🟡 En cours — démarrée le 2026-05-02
 
 ## Objectif
-Remplacer le placeholder `arc-cli/src/index.ts` par un vrai squelette CLI basé sur **clipanion**, exposant une commande `arc version` (et le flag `--version`). Premier code "produit" du monorepo, fondation de toutes les commandes Phase 1 (init, deploy, status, etc.).
+Donner au CLI son identité visuelle dès l'aide racine. Ajouter une commande `arc help` (cohérence avec le pattern `arc <verbe>`) qui affiche un header ASCII "EuglowLabs ARC" suivi de l'aide générée par clipanion. Le branding s'applique aussi à `arc -h` / `arc --help` (mêmes points d'entrée), mais **pas** à l'aide d'une sous-commande (`arc version --help`).
 
 ## Critères d'acceptation
-- [ ] `pnpm --filter @euglowlabs/arc-cli build` produit `dist/index.js` exécutable
-- [ ] `node packages/arc-cli/dist/index.js version` affiche `arc 0.0.0`
-- [ ] `node packages/arc-cli/dist/index.js --version` affiche `0.0.0`
-- [ ] `node packages/arc-cli/dist/index.js --help` affiche l'aide clipanion (binaryName=arc, binaryLabel=EuglowLabs ARC)
-- [ ] Test Vitest qui exécute le runner clipanion et asserte la sortie de `version`
+- [ ] `arc help` affiche le banner ASCII puis la liste des commandes
+- [ ] `arc -h` et `arc --help` affichent le même banner + aide
+- [ ] `arc version --help` (aide d'une sous-commande) n'affiche **pas** le banner
+- [ ] Le banner est purement ASCII (pas d'unicode large, pas d'emoji) — lisible dans tous les terminaux
+- [ ] Les tests Vitest existants passent + 2 nouveaux cas (`arc help` + non-banner sur sous-commande)
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` verts
 - [ ] CI verte sur la PR
 - [ ] PR mergée sur main
 
 ## Fichiers concernés (estimation)
-- `packages/arc-cli/package.json` (modif : add `clipanion`, `typanion` deps)
-- `packages/arc-cli/src/version.ts` (création — constante `VERSION = "0.0.0"`)
-- `packages/arc-cli/src/cli.ts` (création — factory `buildCli()` qui retourne `Cli` configuré)
-- `packages/arc-cli/src/commands/version.ts` (création — `VersionCommand` clipanion)
-- `packages/arc-cli/src/index.ts` (réécriture — entry point avec shebang `#!/usr/bin/env node` + `cli.runExit`)
-- `packages/arc-cli/src/cli.test.ts` (création — Vitest)
-- `packages/arc-cli/tsconfig.json` (modif si besoin pour préserver shebang)
+- `packages/arc-cli/src/banner.ts` (création — constante `BANNER` + helper `renderBanner(stdout)`)
+- `packages/arc-cli/src/commands/help.ts` (création — `HelpCommand` clipanion remplaçant `Builtins.HelpCommand`)
+- `packages/arc-cli/src/cli.ts` (modif — remplacer `Builtins.HelpCommand` par `HelpCommand`)
+- `packages/arc-cli/src/cli.test.ts` (modif — ajouter assertions banner)
 
 ## ADRs liés
 - ADR-0001 — Monorepo Turborepo
-- ADR-0002 — Bun runtime CLI : on **utilise clipanion** (acté). Le single-binary `bun build --compile` est reporté à CLI-025. Pour CLI-001 on cible Node (`#!/usr/bin/env node`) — Bun reste compatible mais on ne dépend pas de Bun installé sur la machine du dev pour `pnpm test`.
+- ADR-0002 — Bun runtime CLI / clipanion
 
 ## Conventions à respecter
-- `docs/04-conventions/coding-style.md` — TS strict, zéro `any`, kebab-case fichiers, JSDoc sur les exports publics
-- `docs/04-conventions/testing.md` — Vitest collocated `.test.ts`, cas limites couverts
-- `docs/04-conventions/naming.md` — packages `@euglowlabs/arc-*`, scope `cli`
+- `docs/04-conventions/coding-style.md` — TS strict, JSDoc sur exports, kebab-case fichiers
+- `docs/04-conventions/testing.md` — Vitest collocated, cas limites couverts
+- `docs/04-conventions/naming.md` — branche `feat/CLI-002-help-banner`, scope `cli`
 
 ## Hors scope (NE PAS faire)
-- Pas d'autres commandes (`init`, `deploy`, `status`, ...) — chacune a sa tâche dédiée (CLI-005, CLI-012, CLI-015, ...)
-- Pas de single-binary `bun build --compile` — reporté à CLI-025
-- Pas de schéma de config `arc.config.yml` — CLI-003
-- Pas de `@clack/prompts` interactif — réservé à CLI-005 (`arc init`)
-- Pas de lecture de la version depuis `package.json` runtime — pour l'instant constante en dur (sera factorisé en CLI-025 au build)
-- Pas de telemetry — CLI-028
-- Pas de publication npm — CLI-026
+- Pas de couleurs ANSI dans le banner (laisser clipanion gérer ses propres couleurs ; le banner doit rester lisible sans terminal coloré)
+- Pas de version dynamique embarquée dans le banner — la version est déjà affichée par le header clipanion auto
+- Pas d'autres commandes ajoutées
+- Pas de modification de `VersionCommand`
+- Pas de prompt interactif
 
 ## Plan d'implémentation
 
-### Sous-tâche 1 : Dépendances + version constante
-- **Fichiers** : `packages/arc-cli/package.json`, `packages/arc-cli/src/version.ts`
+### Sous-tâche 1 : Banner ASCII
+- **Fichiers** : `packages/arc-cli/src/banner.ts`
 - **Effort estimé** : 10 min
-- **Détail** : Ajouter `clipanion` 4.x et son peer `typanion` à `dependencies`. Créer `src/version.ts` qui exporte `export const VERSION = "0.0.0"` (placeholder, sync avec `package.json` version manuelle pour cette tâche).
+- **Détail** : Créer une constante `BANNER` (string multi-ligne) avec un logo ASCII "EuglowLabs ARC" + tagline "Autonomous Resource Cloud" + ligne vide finale. Privilégier un style sobre lisible à 80 colonnes (pas de figlet géant). Exporter aussi un helper `renderBanner(stdout: Writable)` qui écrit `BANNER + "\n"`.
 
-### Sous-tâche 2 : Commande VersionCommand
-- **Fichiers** : `packages/arc-cli/src/commands/version.ts`
-- **Effort estimé** : 10 min
-- **Détail** : Définir `class VersionCommand extends Command` (clipanion) avec `static paths = [["version"]]`, méthode `execute()` qui écrit `arc ${VERSION}` sur `this.context.stdout`. Documentation JSDoc sur la classe.
+### Sous-tâche 2 : HelpCommand clipanion
+- **Fichiers** : `packages/arc-cli/src/commands/help.ts`
+- **Effort estimé** : 15 min
+- **Détail** : Définir `class HelpCommand extends Command` avec `paths = [["help"], ["-h"], ["--help"]]`. Méthode `execute()` : (1) écrit le banner via `renderBanner(this.context.stdout)`, (2) écrit la sortie de `this.cli.usage(null)`, (3) retourne 0. JSDoc explicite que cette commande remplace volontairement `Builtins.HelpCommand` pour injecter le branding.
 
-### Sous-tâche 3 : Factory CLI réutilisable pour les tests
+### Sous-tâche 3 : Wiring dans cli.ts
 - **Fichiers** : `packages/arc-cli/src/cli.ts`
-- **Effort estimé** : 15 min
-- **Détail** : Exporter `buildCli()` qui crée et retourne un `Cli` configuré (`binaryLabel: "EuglowLabs ARC"`, `binaryName: "arc"`, `binaryVersion: VERSION`), enregistre `VersionCommand` + `Builtins.HelpCommand` + `Builtins.VersionCommand`. Exposer aussi un helper `runFromArgs(args, ctx)` pour faciliter les tests sans toucher `process.argv`.
-
-### Sous-tâche 4 : Entry point binaire
-- **Fichiers** : `packages/arc-cli/src/index.ts`
 - **Effort estimé** : 5 min
-- **Détail** : Réécriture complète. Première ligne `#!/usr/bin/env node` (préservée par tsc). Import `buildCli` puis `buildCli().runExit(process.argv.slice(2))`. Plus de constantes exportées (le test passera par `cli.ts`).
+- **Détail** : Retirer `cli.register(Builtins.HelpCommand)`. Ajouter `cli.register(HelpCommand)`. Conserver `Builtins.VersionCommand` (continue de gérer `--version` sans banner). L'ordre d'enregistrement est sans importance côté clipanion.
 
-### Sous-tâche 5 : Test Vitest
+### Sous-tâche 4 : Tests
 - **Fichiers** : `packages/arc-cli/src/cli.test.ts`
-- **Effort estimé** : 20 min
-- **Détail** : Tests collocated. Cas couverts :
-  - `runFromArgs(["version"])` → exit 0, stdout contient `arc 0.0.0`
-  - `runFromArgs(["--version"])` → exit 0, stdout contient `0.0.0`
-  - `runFromArgs([])` → exit non-zero ou aide affichée (selon comportement clipanion par défaut, à vérifier puis figer dans l'assertion)
-  - `runFromArgs(["doesnotexist"])` → exit non-zero
-  - Capturer stdout via `Writable` mock pour ne pas polluer le runner Vitest.
-
-### Sous-tâche 6 : Vérif + commit + PR
-- **Fichiers** : aucun nouveau
 - **Effort estimé** : 15 min
-- **Détail** : Inclure aussi les artefacts pendants d'INFRA-007 (tasks/INDEX, tasks/current, tasks/completed/2026-05-02-INFRA-007.md). `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. Branche `feat/CLI-001-clipanion-skeleton`. Commit `feat(cli): add clipanion skeleton with version command [CLI-001]`. Push, PR, attendre CI verte, merger.
+- **Détail** : Ajouter 2 nouveaux cas et ajuster ceux existants si besoin :
+  - `runFromArgs(["help"])` → exit 0, stdout contient `EuglowLabs ARC` (texte du banner) ET `arc version` (commande listée)
+  - `runFromArgs(["--help"])` → exit 0, stdout contient `EuglowLabs ARC` (banner partagé)
+  - `runFromArgs(["version", "--help"])` → exit 0, stdout NE contient PAS la ligne du banner ASCII (vérifié via une marque caractéristique du banner)
+  - Le test "no args" existant reste valide (clipanion affiche son aide par défaut, qui passe par notre HelpCommand → contient le banner)
+
+### Sous-tâche 5 : Vérif + commit + PR
+- **Fichiers** : aucun nouveau
+- **Effort estimé** : 10 min
+- **Détail** : `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. Smoke test du binaire compilé : `node packages/arc-cli/dist/index.js help` doit afficher le banner. Branche `feat/CLI-002-help-banner`. Commit `feat(cli): add help command with ASCII banner [CLI-002]`. Inclure les artefacts pendants de CLI-001 (tasks/INDEX, tasks/current, archive). Push, PR, attendre CI verte, merger.
 
 ## Scratchpad
 
-### Décisions ouvertes — à valider avant de coder
-- **Source de la version** : pour cette tâche on garde une constante `VERSION = "0.0.0"` en dur. La synchronisation automatique avec `package.json#version` sera traitée en CLI-025 (single-binary `bun build --compile` permettra de l'embarquer en `define`). Synchronisation manuelle d'ici là.
-- **Shebang `node` vs `bun`** : `node` choisi car Node est la baseline `.tool-versions` (≥20). Bun reste compatible. Le passage à Bun-natif est lié au single-binary, donc CLI-025.
-- **`runExit` côté tests** : on n'utilise PAS `runExit` dans les tests (il appelle `process.exit`, casse le runner Vitest). On expose `runFromArgs` qui retourne le code de sortie via `cli.run`.
+### Décisions ouvertes
+- **Style du banner** : ASCII sobre 5-6 lignes max, pas de figlet géant. À ajuster visuellement après affichage local. Si l'esthétique est très importante, prévoir une option `--no-banner` plus tard (hors scope CLI-002).
+- **Surcharge des Builtins** : on remplace `Builtins.HelpCommand` par notre `HelpCommand` qui couvre les mêmes paths (`-h`, `--help`, `help`). Si clipanion ajoute des cas non couverts (ex: comportement spécial sur certains argv), on adaptera. À surveiller en CLI-005+.
 
 ### Notes
-- Clipanion 4.x est stable, ESM-friendly, supporte les built-ins HelpCommand/VersionCommand.
-- `typanion` est le peer pour les schémas de validation runtime — peut être déclaré seulement si on commence à utiliser `Option.String({ validator: t.isString() })`. Sinon optionnel. À ajouter quand on aura besoin de valider les options (CLI-005+).
+- Le banner ne doit PAS contenir de caractères qui plantent un terminal Windows cmd legacy (pas d'unicode > U+007F). Valider avec un caractère seulement de base ASCII (`#`, `=`, `/`, `\`, `_`).
+- L'aide d'une sous-commande (`arc version --help`) est gérée en interne par clipanion sans passer par notre HelpCommand → pas de banner, conforme au critère.
