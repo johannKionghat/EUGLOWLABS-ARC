@@ -1,19 +1,8 @@
-# Tâche : CLI-015 — `arc status`
-
-## Statut
-🟡 En cours — 2026-05-02
-
-## Objectif
-Health check : lit l'état + ping `docker compose ps` via adapter, rapporte les services up/down. Surface CLI clipanion.
-
-## Critères
-- [ ] `checkStatus(adapter, opts)` fonction pure
-- [ ] `StatusCommand` clipanion
-- [ ] Tests MockAdapter
-- [ ] CI verte, PR mergée
+# Tâche : CLI-016 — `arc logs <service>`
+🟡 — `docker logs --tail N --follow <service>` via adapter, stream stdout.
 
 ## Plan
-1. `checkStatus` (15 min)
-2. `StatusCommand` + wiring (10 min)
-3. Tests (10 min)
-4. Vérif + PR (10 min)
+1. `tailLogs(adapter, service, opts)` (10 min)
+2. `LogsCommand` clipanion + wiring (10 min)
+3. Tests MockAdapter (10 min)
+4. PR (10 min)
