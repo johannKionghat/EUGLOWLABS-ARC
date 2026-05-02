@@ -50,8 +50,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-020 — Commande `arc restore <backup-id>` avec liste interactive (2026-05-02)
 - ✅ CLI-021 — Commande `arc project add <name>` (Coolify API + create DB) (2026-05-02)
 - ✅ CLI-022 — Commande `arc project list` + `arc project deploy <name>` (2026-05-02)
-- 🟡 CLI-023 — Commande `arc migrate --from=local --to=<vps-ip>`
-- ⬜ CLI-024 — Cloudflare Tunnel auto en mode `target: local`
+- ✅ CLI-023 — Commande `arc migrate --from=local --to=<vps-ip>` (2026-05-02)
+- 🟡 CLI-024 — Cloudflare Tunnel auto en mode `target: local`
 - ⬜ CLI-025 — Compilation single binary `bun build --compile` cross-target (Linux/macOS/Win)
 - ⬜ CLI-026 — Publication npm `@euglowlabs/arc-cli` + Homebrew tap
 - ⬜ CLI-027 — Script `install.sh` curl-friendly + endpoint `arc.euglowlabs.com/install.sh`
