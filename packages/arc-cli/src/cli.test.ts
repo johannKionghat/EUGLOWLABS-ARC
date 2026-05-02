@@ -56,4 +56,29 @@ describe("arc CLI", () => {
     // non-empty user-facing message somewhere.
     expect(result.stdout + result.stderr).not.toBe("");
   });
+
+  it("renders the ASCII banner on `arc help`", async () => {
+    const result = await run(["help"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("EuglowLabs ARC");
+    expect(result.stdout).toContain("Autonomous Resource Cloud");
+    // The ASCII frame is the unique marker of the banner.
+    expect(result.stdout).toContain("+----------------------------------------------------------+");
+    // Usage section must follow the banner.
+    expect(result.stdout).toContain("arc version");
+  });
+
+  it("renders the ASCII banner on `--help`", async () => {
+    const result = await run(["--help"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("+----------------------------------------------------------+");
+  });
+
+  it("does NOT render the banner on subcommand help", async () => {
+    const result = await run(["version", "--help"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain(
+      "+----------------------------------------------------------+",
+    );
+  });
 });
