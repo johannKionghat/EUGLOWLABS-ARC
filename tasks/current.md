@@ -1,2 +1,2 @@
-# CLI-020 — `arc restore`
-🟡 — list backups dans dir, restaure pg_dump dans postgres container, restaure volumes via tar -xzf via container alpine.
+# CLI-021 — `arc project add`
+🟡 — Coolify API POST /api/v1/projects + CREATE DATABASE via SQL côté Postgres.

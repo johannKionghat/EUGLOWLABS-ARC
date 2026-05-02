@@ -6,6 +6,7 @@ import { DeployCommand } from "./commands/deploy.js";
 import { HelpCommand } from "./commands/help.js";
 import { InitCommand } from "./commands/init.js";
 import { LogsCommand } from "./commands/logs.js";
+import { ProjectAddCommand } from "./commands/project.js";
 import { RestartCommand } from "./commands/restart.js";
 import { RestoreCommand } from "./commands/restore.js";
 import { StatusCommand } from "./commands/status.js";
@@ -35,6 +36,7 @@ export function buildCli(): Cli<BaseContext> {
   cli.register(RestartCommand);
   cli.register(BackupCommand);
   cli.register(RestoreCommand);
+  cli.register(ProjectAddCommand);
 
   return cli;
 }
