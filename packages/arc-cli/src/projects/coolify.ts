@@ -39,4 +39,26 @@ export class CoolifyClient {
     const data = (await response.json()) as CoolifyCreateProjectResponse;
     return { uuid: data.uuid, name: data.name };
   }
+
+  async listProjects(): Promise<CoolifyProject[]> {
+    const response = await fetch(`${this.opts.baseUrl}/api/v1/projects`, {
+      headers: { Authorization: `Bearer ${this.opts.apiToken}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Coolify listProjects failed (${response.status})`);
+    }
+    const data = (await response.json()) as CoolifyProject[];
+    return data.map((p) => ({ uuid: p.uuid, name: p.name }));
+  }
+
+  async deployProject(uuid: string): Promise<void> {
+    const response = await fetch(`${this.opts.baseUrl}/api/v1/projects/${uuid}/deploy`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.opts.apiToken}` },
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Coolify deployProject failed (${response.status}): ${body}`);
+    }
+  }
 }

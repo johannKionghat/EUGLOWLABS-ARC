@@ -1,2 +1,2 @@
-# CLI-021 — `arc project add`
-🟡 — Coolify API POST /api/v1/projects + CREATE DATABASE via SQL côté Postgres.
+# CLI-022 — `arc project list` + `arc project deploy <name>`
+🟡 — listProjects via Coolify API ; deployProject via Coolify deploy endpoint.
