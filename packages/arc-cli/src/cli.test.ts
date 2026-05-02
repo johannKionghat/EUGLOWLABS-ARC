@@ -64,8 +64,9 @@ describe("arc CLI", () => {
     expect(result.stdout).toContain("Autonomous Resource Cloud");
     // The ASCII frame is the unique marker of the banner.
     expect(result.stdout).toContain("+----------------------------------------------------------+");
-    // Usage section must follow the banner.
+    // Usage section must follow the banner and list registered commands.
     expect(result.stdout).toContain("arc version");
+    expect(result.stdout).toContain("arc init");
   });
 
   it("renders the ASCII banner on `--help`", async () => {

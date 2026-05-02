@@ -1,118 +1,111 @@
-# Tâche en cours : CLI-004 — Loader `arc.config.yml` avec validation zod et erreurs claires
+# Tâche en cours : CLI-005 — Commande `arc init` interactive (@clack/prompts)
 
 ## Statut
 🟡 En cours — démarrée le 2026-05-02
 
 ## Objectif
-Lire le fichier `arc.config.yml` depuis le disque, le parser en JS, le valider via `arcConfigSchema` (CLI-003), et retourner soit un `ArcConfig` typé, soit un `ConfigError` avec un message utilisateur lisible (path + raison + extrait). Module consommé par toutes les commandes Phase 1 à venir (deploy, status, project add, …).
+Boucler l'écosystème de configuration : ajouter `arc init` qui pose à l'utilisateur les questions essentielles (project, target, domain, email, dns, provider conditionnel) via **`@clack/prompts`**, valide à la volée avec les schémas zod (CLI-003), et écrit un `arc.config.yml` que `loadArcConfig` (CLI-004) saura relire. Premier parcours utilisateur visible et "produit" du CLI.
 
 ## Critères d'acceptation
-- [ ] `loadArcConfig(filePath: string)` retourne un `ArcConfig` typé sur fichier valide
-- [ ] Erreur explicite si le fichier n'existe pas (path + message clair)
-- [ ] Erreur explicite si le YAML est syntaxiquement invalide (path + ligne si possible)
-- [ ] Erreur explicite si la validation zod échoue (chaque issue formatée `path.to.field: message`)
-- [ ] `ConfigError` exposée comme classe avec `.issues` (pour usage programmatique) et `.toUserMessage()` (pour affichage CLI)
-- [ ] ≥ 5 cas Vitest couverts avec fixtures YAML : fichier absent, YAML invalide, valide minimal, valide complet, échec zod multi-issues
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` verts (15 → ≥ 20 tests Vitest globaux)
+- [ ] `arc init` affiche un intro `clack` propre puis enchaîne les prompts
+- [ ] Questions posées : `project` (slug), `target` (local|vps), `domain`, `email`, `dns.zone`, `dns.api_token`, et **conditionnellement** `provider.{plan, location, ssh_key}` si `target=vps`
+- [ ] Validation de chaque réponse au moment de la saisie (réutilise les sous-schémas zod : domain regex, email, slug, etc.)
+- [ ] Si l'utilisateur annule (`Ctrl+C`/`s.cancel()`), exit code 1 + message "init cancelled"
+- [ ] Le fichier `arc.config.yml` produit dans le CWD passe `loadArcConfig` sans erreur (boucle d'auto-test)
+- [ ] Refus d'écraser un `arc.config.yml` existant sans flag `--force`
+- [ ] ≥ 4 cas Vitest (génération happy path local, génération happy path vps, refus écraser, sérialisation YAML respecte le schéma)
+- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` verts
 - [ ] CI verte sur la PR
 - [ ] PR mergée sur main
 
 ## Fichiers concernés (estimation)
-- `packages/arc-cli/package.json` (modif — add `yaml`)
-- `packages/arc-cli/src/config/errors.ts` (création — `ConfigError` + `formatZodError`)
-- `packages/arc-cli/src/config/load.ts` (création — `loadArcConfig`)
-- `packages/arc-cli/src/config/index.ts` (création — barrel)
-- `packages/arc-cli/src/config/__fixtures__/valid-local.yml` (création)
-- `packages/arc-cli/src/config/__fixtures__/valid-vps.yml` (création)
-- `packages/arc-cli/src/config/__fixtures__/invalid-yaml.yml` (création — YAML mal formé exprès)
-- `packages/arc-cli/src/config/__fixtures__/invalid-schema.yml` (création — YAML valide mais zod fail)
-- `packages/arc-cli/src/config/load.test.ts` (création — Vitest)
+- `packages/arc-cli/package.json` (modif — add `@clack/prompts`)
+- `packages/arc-cli/src/commands/init.ts` (création — `InitCommand` clipanion)
+- `packages/arc-cli/src/init/prompts.ts` (création — fonction `promptForConfig()` qui retourne `Partial<ArcConfig>` ou `null` si annulé, **isolée des effets clack pour testabilité**)
+- `packages/arc-cli/src/init/serialize.ts` (création — `serializeArcConfig(cfg) → string YAML`)
+- `packages/arc-cli/src/init/write.ts` (création — `writeArcConfig(path, cfg, { force })`)
+- `packages/arc-cli/src/init/index.ts` (création — barrel)
+- `packages/arc-cli/src/init/serialize.test.ts` (création — Vitest)
+- `packages/arc-cli/src/init/write.test.ts` (création — Vitest avec tmpdir)
+- `packages/arc-cli/src/cli.ts` (modif — `cli.register(InitCommand)`)
+- `packages/arc-cli/src/cli.test.ts` (modif — assertion que `arc help` liste `arc init`)
 
 ## ADRs liés
 - ADR-0001 — Monorepo Turborepo
-- ADR-0002 — Bun runtime CLI / clipanion (loader sera consommé par toutes les commandes)
-- ADR-0009 — Dual target local/VPS (le schéma chargé contient `target`)
+- ADR-0002 — Bun runtime CLI / clipanion (clack compat OK avec Node ESM)
+- ADR-0007 — Postgres partagé via Supabase
+- ADR-0009 — Dual target local/VPS (drive le branchement conditionnel des prompts)
 
 ## Conventions à respecter
-- `docs/04-conventions/coding-style.md` — TS strict, JSDoc sur exports, kebab-case fichiers, pas d'`any`
-- `docs/04-conventions/testing.md` — Vitest collocated, cas limites couverts (null, vide, fichier absent)
-- `docs/04-conventions/naming.md` — branche `feat/CLI-004-config-loader`, scope `cli`
+- `docs/04-conventions/coding-style.md` — TS strict, JSDoc, kebab-case fichiers, pas d'`any`
+- `docs/04-conventions/testing.md` — Vitest collocated, cas limites couverts
+- `docs/04-conventions/naming.md` — branche `feat/CLI-005-init-command`, scope `cli`
 
 ## Hors scope (NE PAS faire)
-- Pas de `arc init` interactif (CLI-005)
-- Pas d'écriture de `arc.config.yml` (CLI-005 + CLI-006/007/008 pour templates)
-- Pas de génération de templates Docker Compose (CLI-006/007/008)
-- Pas de résolution de secrets / vars d'env (interpolation `${...}`) — les valeurs sensibles restent telles quelles dans cette tâche
-- Pas de cache disque du résultat
-- Pas de `loadArcConfigSync` — async only (lecture disque potentiellement lente)
-- Pas de hot-reload / watcher
-- Pas d'utilisation dans une commande clipanion (l'intégration vient avec CLI-012 et CLI-015)
+- Pas de génération de **templates Docker Compose** (CLI-006/007/008)
+- Pas de **provisioning** Hetzner / Cloudflare (CLI-011, CLI-024)
+- Pas d'**installation** de Coolify ni `local-ai-packaged` (CLI-012/013)
+- Pas de **interpolation `${VAR}`** au moment de l'écriture (les valeurs saisies sont littérales)
+- Pas de prompts pour `stack`, `backups`, `services`, `projects` — laisser les **defaults zod** s'appliquer (les utilisateurs avancés éditeront le YAML manuellement). Les ajouter plus tard via une autre tâche si l'UX le réclame.
+- Pas de support Cloudflare Tunnel auto-config (CLI-024)
+- Pas d'écriture de fichiers `.env` ou autres en plus du YAML
+- Pas de TUI Ink/blessed — on reste sur le flow linéaire `clack`
 
 ## Plan d'implémentation
 
-### Sous-tâche 1 : Dépendance YAML + bootstrap dossier
-- **Fichiers** : `packages/arc-cli/package.json`, `packages/arc-cli/src/config/index.ts`
+### Sous-tâche 1 : Dépendance @clack/prompts + bootstrap dossier
+- **Fichiers** : `packages/arc-cli/package.json`, `src/init/index.ts`
 - **Effort estimé** : 5 min
-- **Détail** : `pnpm --filter @euglowlabs/arc-cli add yaml`. Choix : `yaml` (eemeli/yaml) — référence du parsing YAML en TS, supporte les positions de tokens pour les erreurs de syntaxe. Créer `src/config/index.ts` vide (rempli en sous-tâche 5).
+- **Détail** : `pnpm --filter @euglowlabs/arc-cli add @clack/prompts`. Créer `src/init/index.ts` (vide, rempli en sous-tâche 6).
 
-### Sous-tâche 2 : ConfigError + formatZodError
-- **Fichiers** : `packages/arc-cli/src/config/errors.ts`
-- **Effort estimé** : 15 min
-- **Détail** : Classe `ConfigError extends Error` avec :
-  - `kind: "not-found" | "syntax" | "schema"` — discriminant
-  - `path: string` — chemin du fichier source (toujours présent)
-  - `issues?: string[]` — pour `kind: "schema"`
-  - `cause?: Error` — l'erreur d'origine (yaml ou fs)
-  - `toUserMessage(): string` — formate selon `kind` :
-    - `not-found` : `"Config file not found: <path>"`
-    - `syntax` : `"Invalid YAML at <path>:<line>:<col> — <message>"`
-    - `schema` : `"Invalid arc.config.yml at <path>:\n  - <field>: <msg>\n  - <field>: <msg>"`
-  - Helper `formatZodError(error: ZodError): string[]` qui transforme chaque issue en `"path.to.field: message"`.
-
-### Sous-tâche 3 : loadArcConfig
-- **Fichiers** : `packages/arc-cli/src/config/load.ts`
+### Sous-tâche 2 : Sérialisation YAML d'un ArcConfig
+- **Fichiers** : `src/init/serialize.ts`, `src/init/serialize.test.ts`
 - **Effort estimé** : 20 min
-- **Détail** : `export async function loadArcConfig(filePath: string): Promise<ArcConfig>` qui :
-  1. `readFile(filePath, "utf8")` → catch `ENOENT` → throw `ConfigError("not-found")`
-  2. `YAML.parse(raw, ...)` → catch `YAMLParseError` → extraire `linePos` → throw `ConfigError("syntax")`
-  3. `arcConfigSchema.safeParse(parsed)` → si `!success` → `ConfigError("schema", issues = formatZodError(error))`
-  4. Sur succès, retourner `result.data` (typé `ArcConfig` via inference).
-  Imports : `node:fs/promises`, `yaml`, `@euglowlabs/arc-shared`, `./errors.js`.
+- **Détail** : `serializeArcConfig(cfg: Partial<ArcConfig>): string` utilise `yaml.stringify` de la lib `yaml` déjà installée. Préserve `lineWidth: 100`, indentation 2 espaces. Ajoute un header de commentaire `# arc.config.yml — generated by \`arc init\` on YYYY-MM-DD\n`. Tests : sérialise minimal → string YAML qui se reparse en équivalent ; sérialise vps avec provider → contient les clés snake_case attendues.
 
-### Sous-tâche 4 : Fixtures YAML
-- **Fichiers** : 4 fichiers sous `packages/arc-cli/src/config/__fixtures__/`
-- **Effort estimé** : 10 min
-- **Détail** :
-  - `valid-local.yml` — config minimale `target: local` (pas de provider)
-  - `valid-vps.yml` — config complète avec provider Hetzner + projects + ollama models
-  - `invalid-yaml.yml` — YAML cassé (ex: indentation incohérente, `:` manquant)
-  - `invalid-schema.yml` — YAML valide mais `email` malformé + `target: azure` (deux issues)
+### Sous-tâche 3 : Écriture sur disque avec garde-fou --force
+- **Fichiers** : `src/init/write.ts`, `src/init/write.test.ts`
+- **Effort estimé** : 20 min
+- **Détail** : `writeArcConfig(path, cfg, { force }: { force: boolean })`. Si le fichier existe et `!force` → throw `Error("arc.config.yml already exists; use --force to overwrite")`. Sinon `writeFile`. Tests utilisent `os.tmpdir()` + `fs.mkdtemp` pour isolation : écriture, refus sans force, écrasement avec force, contenu reparse sans erreur via `loadArcConfig`.
 
-### Sous-tâche 5 : Tests Vitest
-- **Fichiers** : `packages/arc-cli/src/config/load.test.ts`, `packages/arc-cli/src/config/index.ts` (barrel re-export)
+### Sous-tâche 4 : Prompts interactifs (séparés de la commande clipanion)
+- **Fichiers** : `src/init/prompts.ts`
 - **Effort estimé** : 25 min
-- **Détail** : `import.meta.url` + `fileURLToPath` pour résoudre le chemin des fixtures. 5 cas :
-  1. Valid minimal local → `target === "local"`, `provider === undefined`
-  2. Valid complet vps → `target === "vps"`, `provider.plan === "cx32"`
-  3. Fichier absent → `ConfigError`, `kind === "not-found"`, message contient le path
-  4. YAML invalide → `ConfigError`, `kind === "syntax"`, `toUserMessage()` mentionne `:line:`
-  5. Schéma invalide multi-issues → `ConfigError`, `kind === "schema"`, `issues.length >= 2`, message lisible
-  Barrel `src/config/index.ts` re-exporte `loadArcConfig`, `ConfigError`.
+- **Détail** : `async function promptForConfig(): Promise<Partial<ArcConfig> | null>` enchaîne les prompts `clack` :
+  - `text("Project slug")` validé par regex
+  - `select("Target")` → `"local" | "vps"`
+  - `text("Domain")` validé regex
+  - `text("Email")` validé `z.email`
+  - `text("DNS zone")` (default = domain)
+  - `password("Cloudflare API token")`
+  - **conditionnel** si `target=vps` : `text("VPS plan")` (default cx32), `text("VPS location")` (default fsn1), `text("Path to SSH public key")` (default `~/.ssh/id_ed25519.pub`)
+  Si n'importe quel prompt retourne `Symbol(clack.cancel)`, `outro("init cancelled")` puis return `null`. À chaque saisie : on rebuild un objet partiel et on pourrait potentiellement valider via `arcConfigSchema.partial().safeParse` — pour CLI-005 on se contente des validateurs zod par champ via `clack.text({ validate: ... })`.
 
-### Sous-tâche 6 : Vérif + commit + PR
+### Sous-tâche 5 : Commande clipanion InitCommand + flag --force
+- **Fichiers** : `src/commands/init.ts`, `src/cli.ts`
+- **Effort estimé** : 15 min
+- **Détail** : `class InitCommand extends Command` avec `paths = [["init"]]`, `Option.Boolean("--force,-f")` (default false), `Option.String("--out", { description: "Output path" })` (default `./arc.config.yml`). `execute()` : `intro` clack → `promptForConfig()` → si null exit 1 → `serializeArcConfig` → `writeArcConfig(out, cfg, { force })` → `outro("Wrote " + path)` → return 0. Catch toute erreur de write → message lisible + exit 1. Enregistrer dans `cli.ts`.
+
+### Sous-tâche 6 : Tests + barrel + ajustement test cli help
+- **Fichiers** : `src/init/index.ts`, `src/cli.test.ts` (modif)
+- **Effort estimé** : 15 min
+- **Détail** : Barrel `src/init/index.ts` exporte `serializeArcConfig`, `writeArcConfig` (les prompts ne sont pas exposés — usage interne InitCommand). Étendre `cli.test.ts` avec un cas qui vérifie que `runFromArgs(["help"])` mentionne `arc init` dans la sortie. Re-run `pnpm test` (≥ 24 tests : 12 anciens + 4 nouveaux + 1 ajusté help). **Pas de test E2E sur `arc init`** lui-même (input interactif lourd à mock — on teste les briques `serialize` et `write` isolément).
+
+### Sous-tâche 7 : Vérif + commit + PR
 - **Fichiers** : aucun nouveau
 - **Effort estimé** : 15 min
-- **Détail** : Inclure aussi les artefacts pendants de CLI-003 (tasks/INDEX, tasks/current, archive). Ajustement `tsconfig.json` arc-cli si Vitest plante sur les fixtures (devrait être OK, tsconfig exclut déjà `**/*.test.ts` mais inclut tout `src/**/*` — vérifier que les `.yml` ne plantent pas tsc, normalement non car non importés). `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. Branche `feat/CLI-004-config-loader`. Commit `feat(cli): load and validate arc.config.yml [CLI-004]`. Push, PR, attendre CI verte, merger.
+- **Détail** : Inclure les artefacts pendants de CLI-004. `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. Smoke test : `node packages/arc-cli/dist/index.js init --out /tmp/test.yml` puis `node -e "...loadArcConfig('/tmp/test.yml')..."` (manuel, pas en CI). Branche `feat/CLI-005-init-command`. Commit `feat(cli): add interactive init command [CLI-005]`. Push, PR, attendre CI verte, merger.
 
 ## Scratchpad
 
 ### Décisions ouvertes — à valider avant de coder
-- **Lib YAML** : `yaml` (eemeli/yaml) choisi car robust + erreurs avec positions. Alternatives rejetées : `js-yaml` (plus ancien, erreurs moins riches), `yaml-ast-parser` (low-level, overkill). Pas d'ADR (tooling local).
-- **API throw vs Result** : on **throw** `ConfigError` (idiome Node, plus simple côté appelant). Si on avait un cadre fp, on utiliserait Result. À reconsidérer si on adopte un pattern Result global (hors scope CLI-004).
-- **Async only** : `loadArcConfig` est async (utilise `node:fs/promises`). Pas de version sync — usage CLI très tolérant à l'async.
-- **Pas d'interpolation `${VAR}`** : la spec infra §5.5 montre `api_token: ${CLOUDFLARE_TOKEN}`. Cette interpolation est volontairement reportée (probable nouvelle tâche CLI-004b ou intégrée à CLI-005). On accepte les `${...}` comme strings littérales pour l'instant.
+- **Couverture des prompts limitée aux champs essentiels** : on ne pose pas `stack`, `backups`, `services.ollama.models`, `projects`. Les defaults zod prennent le relais. Si l'UX réclame une expérience plus riche, ajouter une tâche dédiée (`CLI-005b — extended init prompts`).
+- **Pas de test E2E sur la commande `init`** : mocker stdin pour `clack` est fragile. On teste les briques (`serialize`, `write`) en isolation. Acceptable trade-off ; la commande sera couverte indirectement par les premiers `arc init` réels en dogfood.
+- **Throw-vs-process.exit dans les erreurs de write** : on throw, et `InitCommand.execute` catch + retourne le code d'exit. Cohérent avec le pattern `runExit` côté entrypoint.
+- **`--out` au lieu de toujours écrire `./arc.config.yml`** : ajout léger qui simplifie les tests E2E ultérieurs et l'usage en CI.
 
 ### Notes
-- Le chemin des fixtures : `import.meta.url` puis `fileURLToPath` + `path.dirname` + jointure. Pattern ESM standard.
-- Au runtime : `tsc -p tsconfig.json` exclut déjà `**/*.test.ts`, donc le test ne sera pas inclus dans `dist/`. Les fixtures `.yml` ne sont pas importées comme modules, donc TS ne les voit pas.
-- `arcConfigSchema.safeParse` retourne `{ success: false, error: ZodError }` — on n'utilise pas `.parse()` (qui throw une `ZodError` brute, moins ergonomique pour notre `ConfigError`).
+- `@clack/prompts` est ESM-only — compatible avec notre `"type": "module"`.
+- `yaml.stringify` accepte des options pour préserver la structure ; on garde defaults + `lineWidth: 100`.
+- Le test `write.test.ts` doit nettoyer le `tmpdir` après chaque cas (ou laisser l'OS le faire).
+- `clack.text({ validate })` retourne un `Symbol(cancel)` ; check via `isCancel(value)` du module `@clack/core` (réexporté).
