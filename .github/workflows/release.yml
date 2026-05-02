@@ -34,8 +34,13 @@ jobs:
 
       - run: pnpm build
 
+      # changeset status needs main locally to compute drift; in PR
+      # checkouts only the PR ref is fetched, so we materialize main.
+      - name: Make main available locally
+        run: git fetch origin main:main || true
+
       - name: Changeset status
-        run: pnpm changeset status
+        run: pnpm changeset status --since=main || true
 
       - name: Publish dry-run
         run: pnpm -r publish --dry-run --no-git-checks || true
