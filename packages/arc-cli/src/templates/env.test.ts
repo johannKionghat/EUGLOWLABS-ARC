@@ -30,6 +30,10 @@ describe("generateEnvFile", () => {
     expect(out).toContain("JWT_SECRET=__REPLACE_ME__");
     expect(out).toContain("POSTGRES_PASSWORD=__REPLACE_ME__");
     expect(out).toContain("CODE_SERVER_PASSWORD=__REPLACE_ME__");
+    expect(out).toContain("OPENCLAW_DEFAULT_MODEL=mistral:7b");
+    expect(out).toContain("OPENCLAW_FALLBACK_MODEL=__REPLACE_ME__");
+    expect(out).toContain("OPENAI_API_KEY=__REPLACE_ME__");
+    expect(out).toContain("ANTHROPIC_API_KEY=__REPLACE_ME__");
   });
 
   it("contains no unresolved eta placeholders", () => {

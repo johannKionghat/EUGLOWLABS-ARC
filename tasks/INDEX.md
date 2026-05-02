@@ -34,8 +34,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-004 — Loader `arc.config.yml` avec validation zod et messages d'erreur clairs (2026-05-02)
 - ✅ CLI-005 — Commande `arc init` interactive (@clack/prompts) — questions de base (2026-05-02)
 - ✅ CLI-006 — Génération templates eta : `docker-compose.prod.yml`, `.env` (2026-05-02)
-- 🟡 CLI-007 — Génération template `docker-compose.sandbox.yml` avec isolation
-- ⬜ CLI-008 — Génération template `docker-compose.agents.yml` (OpenClaw + DeepAgents)
+- ✅ CLI-007 — Génération template `docker-compose.sandbox.yml` avec isolation (2026-05-02)
+- 🟡 CLI-008 — Génération template `docker-compose.agents.yml` (OpenClaw + DeepAgents)
 - ⬜ CLI-009 — Adapter abstrait `ExecutionAdapter` interface (cf. ADR-0009)
 - ⬜ CLI-010 — `LocalAdapter` via execa (exec, copyFile, stream stdout)
 - ⬜ CLI-011 — `VPSAdapter` via node-ssh + Hetzner SDK (provisioning, exec distant)
