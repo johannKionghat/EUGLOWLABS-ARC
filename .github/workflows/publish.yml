@@ -1,0 +1,82 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag (e.g. v0.1.0)"
+        required: true
+        type: string
+
+jobs:
+  npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.14.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.1
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Publish @euglowlabs/arc-cli
+        working-directory: packages/arc-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret missing — skipping publish"
+            exit 0
+          fi
+          pnpm publish --access public --no-git-checks
+
+  binaries:
+    name: Build and upload single binaries
+    runs-on: ubuntu-latest
+    needs: npm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.14.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.1
+          cache: pnpm
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.38
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @euglowlabs/arc-cli build
+
+      - run: pnpm --filter @euglowlabs/arc-cli build:bin
+
+      - name: Upload binaries to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          files: |
+            packages/arc-cli/bin/arc-linux-x64
+            packages/arc-cli/bin/arc-linux-arm64
+            packages/arc-cli/bin/arc-darwin-x64
+            packages/arc-cli/bin/arc-darwin-arm64
+            packages/arc-cli/bin/arc-windows-x64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
