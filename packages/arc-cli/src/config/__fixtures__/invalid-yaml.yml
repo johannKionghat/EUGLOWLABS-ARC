@@ -1,0 +1,6 @@
+# Deliberately broken YAML — unclosed flow sequence to force YAMLParseError.
+project: johann-stack
+target: local
+projects: [
+  - name: euglow
+    repo: github.com/johann/euglow

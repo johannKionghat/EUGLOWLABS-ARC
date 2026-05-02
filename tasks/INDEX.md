@@ -30,8 +30,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 - ✅ CLI-001 — Squelette clipanion + commande `arc version` (2026-05-02)
 - ✅ CLI-002 — Commande `arc help` + branding ASCII (2026-05-02)
-- 🟡 CLI-003 — Schéma zod de `arc.config.yml` (dans `arc-shared`)
-- ⬜ CLI-004 — Loader `arc.config.yml` avec validation zod et messages d'erreur clairs
+- ✅ CLI-003 — Schéma zod de `arc.config.yml` (dans `arc-shared`) (2026-05-02)
+- 🟡 CLI-004 — Loader `arc.config.yml` avec validation zod et messages d'erreur clairs
 - ⬜ CLI-005 — Commande `arc init` interactive (@clack/prompts) — questions de base
 - ⬜ CLI-006 — Génération templates eta : `docker-compose.prod.yml`, `.env`
 - ⬜ CLI-007 — Génération template `docker-compose.sandbox.yml` avec isolation
