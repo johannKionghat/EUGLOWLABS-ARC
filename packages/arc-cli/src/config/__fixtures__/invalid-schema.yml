@@ -1,0 +1,12 @@
+# YAML is syntactically valid but the schema must reject:
+#   - email is malformed
+#   - target is not in the enum
+#   - project slug contains an uppercase letter
+project: BadName
+target: azure
+domain: mondomaine.dev
+email: not-an-email
+dns:
+  provider: cloudflare
+  zone: mondomaine.dev
+  api_token: cf-token

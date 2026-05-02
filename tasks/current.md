@@ -1,116 +1,118 @@
-# Tâche en cours : CLI-003 — Schéma zod de `arc.config.yml` (dans `arc-shared`)
+# Tâche en cours : CLI-004 — Loader `arc.config.yml` avec validation zod et erreurs claires
 
 ## Statut
 🟡 En cours — démarrée le 2026-05-02
 
 ## Objectif
-Définir le **modèle de domaine** central du fichier `arc.config.yml` (cf. spec infra §5.5) en zod, dans `@euglowlabs/arc-shared`. C'est la **source de vérité typée** que toutes les commandes Phase 1 (deploy, status, init, project add, migrate) consommeront. Posé tôt, partagé par CLI / Agent / Cloud à terme.
+Lire le fichier `arc.config.yml` depuis le disque, le parser en JS, le valider via `arcConfigSchema` (CLI-003), et retourner soit un `ArcConfig` typé, soit un `ConfigError` avec un message utilisateur lisible (path + raison + extrait). Module consommé par toutes les commandes Phase 1 à venir (deploy, status, project add, …).
 
 ## Critères d'acceptation
-- [ ] `@euglowlabs/arc-shared` exporte un schéma `arcConfigSchema` (zod) couvrant tous les champs de spec infra §5.5
-- [ ] Type TS `ArcConfig` exporté via `z.infer<typeof arcConfigSchema>`
-- [ ] Sous-schémas séparés exportés : `providerSchema`, `dnsSchema`, `stackSchema`, `backupsSchema`, `servicesSchema`, `projectEntrySchema`
-- [ ] Invariants cross-field : si `target: "vps"` alors `provider` est obligatoire ; si `target: "local"` alors `provider` est optionnel et ignoré
-- [ ] Test Vitest avec ≥ 6 cas couverts : config valide minimale (local), config valide complète (vps), erreur si email invalide, erreur si target invalide, erreur si target=vps sans provider, erreur si subdomain dupliqué (entre projets)
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` verts
+- [ ] `loadArcConfig(filePath: string)` retourne un `ArcConfig` typé sur fichier valide
+- [ ] Erreur explicite si le fichier n'existe pas (path + message clair)
+- [ ] Erreur explicite si le YAML est syntaxiquement invalide (path + ligne si possible)
+- [ ] Erreur explicite si la validation zod échoue (chaque issue formatée `path.to.field: message`)
+- [ ] `ConfigError` exposée comme classe avec `.issues` (pour usage programmatique) et `.toUserMessage()` (pour affichage CLI)
+- [ ] ≥ 5 cas Vitest couverts avec fixtures YAML : fichier absent, YAML invalide, valide minimal, valide complet, échec zod multi-issues
+- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` verts (15 → ≥ 20 tests Vitest globaux)
 - [ ] CI verte sur la PR
 - [ ] PR mergée sur main
 
 ## Fichiers concernés (estimation)
-- `packages/arc-shared/package.json` (modif — add `zod`)
-- `packages/arc-shared/src/schemas/provider.ts` (création)
-- `packages/arc-shared/src/schemas/dns.ts` (création)
-- `packages/arc-shared/src/schemas/stack.ts` (création)
-- `packages/arc-shared/src/schemas/backups.ts` (création)
-- `packages/arc-shared/src/schemas/services.ts` (création)
-- `packages/arc-shared/src/schemas/project.ts` (création)
-- `packages/arc-shared/src/schemas/config.ts` (création — schéma racine + refine)
-- `packages/arc-shared/src/schemas/index.ts` (création — barrel exports)
-- `packages/arc-shared/src/index.ts` (modif — re-export `./schemas`)
-- `packages/arc-shared/src/schemas/config.test.ts` (création — Vitest)
+- `packages/arc-cli/package.json` (modif — add `yaml`)
+- `packages/arc-cli/src/config/errors.ts` (création — `ConfigError` + `formatZodError`)
+- `packages/arc-cli/src/config/load.ts` (création — `loadArcConfig`)
+- `packages/arc-cli/src/config/index.ts` (création — barrel)
+- `packages/arc-cli/src/config/__fixtures__/valid-local.yml` (création)
+- `packages/arc-cli/src/config/__fixtures__/valid-vps.yml` (création)
+- `packages/arc-cli/src/config/__fixtures__/invalid-yaml.yml` (création — YAML mal formé exprès)
+- `packages/arc-cli/src/config/__fixtures__/invalid-schema.yml` (création — YAML valide mais zod fail)
+- `packages/arc-cli/src/config/load.test.ts` (création — Vitest)
 
 ## ADRs liés
-- ADR-0001 — Monorepo Turborepo (justifie la cohabitation `arc-shared`)
-- ADR-0007 — Postgres partagé via Supabase (le schéma reflète qu'il y a une seule instance Supabase, pas une par projet)
-- ADR-0009 — Dual target local/VPS (drive l'invariant target↔provider)
+- ADR-0001 — Monorepo Turborepo
+- ADR-0002 — Bun runtime CLI / clipanion (loader sera consommé par toutes les commandes)
+- ADR-0009 — Dual target local/VPS (le schéma chargé contient `target`)
 
 ## Conventions à respecter
-- `docs/04-conventions/coding-style.md` — TS strict, JSDoc sur exports, kebab-case fichiers
-- `docs/04-conventions/testing.md` — Vitest collocated, cas limites couverts (null, vide, invalid)
-- `docs/04-conventions/naming.md` — branche `feat/CLI-003-arc-config-schema`, scope `shared`
+- `docs/04-conventions/coding-style.md` — TS strict, JSDoc sur exports, kebab-case fichiers, pas d'`any`
+- `docs/04-conventions/testing.md` — Vitest collocated, cas limites couverts (null, vide, fichier absent)
+- `docs/04-conventions/naming.md` — branche `feat/CLI-004-config-loader`, scope `cli`
 
 ## Hors scope (NE PAS faire)
-- Pas de **lecture/parse YAML** (CLI-004 — séparation lecture vs validation)
-- Pas de **génération de templates** (CLI-006/007/008)
-- Pas d'utilisation du schéma dans une commande (CLI-005 `arc init` viendra ensuite)
-- Pas de validation runtime du fichier `arc.config.yml` réel — uniquement le schéma + tests sur des objets JS
-- Pas de transformation snake_case → camelCase : on garde **snake_case** dans les schémas pour matcher 1:1 le YAML (boundary types)
-- Pas de schéma marketplace (`arc-template.yml`) — c'est MARKET-001
-- Pas de modification des packages CLI / Dashboard / Cloud / Agent
+- Pas de `arc init` interactif (CLI-005)
+- Pas d'écriture de `arc.config.yml` (CLI-005 + CLI-006/007/008 pour templates)
+- Pas de génération de templates Docker Compose (CLI-006/007/008)
+- Pas de résolution de secrets / vars d'env (interpolation `${...}`) — les valeurs sensibles restent telles quelles dans cette tâche
+- Pas de cache disque du résultat
+- Pas de `loadArcConfigSync` — async only (lecture disque potentiellement lente)
+- Pas de hot-reload / watcher
+- Pas d'utilisation dans une commande clipanion (l'intégration vient avec CLI-012 et CLI-015)
 
 ## Plan d'implémentation
 
-### Sous-tâche 1 : Dépendance zod + bootstrap dossier
-- **Fichiers** : `packages/arc-shared/package.json`, `packages/arc-shared/src/schemas/index.ts`
+### Sous-tâche 1 : Dépendance YAML + bootstrap dossier
+- **Fichiers** : `packages/arc-cli/package.json`, `packages/arc-cli/src/config/index.ts`
 - **Effort estimé** : 5 min
-- **Détail** : `pnpm --filter @euglowlabs/arc-shared add zod`. Créer `src/schemas/index.ts` (vide, sera rempli par les barrel exports en sous-tâche 7). Vérifier que zod est ajouté en `dependencies` (pas devDep, car le schéma sera consommé par les apps en runtime).
+- **Détail** : `pnpm --filter @euglowlabs/arc-cli add yaml`. Choix : `yaml` (eemeli/yaml) — référence du parsing YAML en TS, supporte les positions de tokens pour les erreurs de syntaxe. Créer `src/config/index.ts` vide (rempli en sous-tâche 5).
 
-### Sous-tâche 2 : Sous-schémas — provider, dns, stack
-- **Fichiers** : `src/schemas/provider.ts`, `src/schemas/dns.ts`, `src/schemas/stack.ts`
-- **Effort estimé** : 25 min
-- **Détail** :
-  - `provider.ts` : `providerSchema` = `{ name: z.literal("hetzner"), plan: z.string().min(1), location: z.string().min(1), ssh_key: z.string().min(1) }`. Type `Provider`.
-  - `dns.ts` : `dnsSchema` = `{ provider: z.literal("cloudflare"), zone: z.string().min(1), api_token: z.string().min(1), tunnel: z.boolean().default(false) }`. Type `DnsConfig`.
-  - `stack.ts` : `stackSchema` = `{ paas: z.enum(["coolify","dokploy"]).default("coolify"), ai_stack: z.boolean().default(true), sandbox: z.boolean().default(true), monitoring: z.literal("uptime-kuma").default("uptime-kuma") }`. Type `StackConfig`.
-  - JSDoc sur chaque schéma renvoyant à la spec infra §5.5.
-
-### Sous-tâche 3 : Sous-schémas — backups, services, project
-- **Fichiers** : `src/schemas/backups.ts`, `src/schemas/services.ts`, `src/schemas/project.ts`
-- **Effort estimé** : 20 min
-- **Détail** :
-  - `backups.ts` : `backupsSchema` = `{ enabled: z.boolean().default(true), schedule: z.string().regex(cronRegex), retention_days: z.number().int().positive().max(365).default(7), remote: z.object({ provider: z.literal("r2"), bucket: z.string().min(1) }).optional() }`. Type `BackupsConfig`.
-  - `services.ts` : `servicesSchema` = `{ ollama: z.object({ models: z.array(z.string().min(1)).default([]) }).default({ models: [] }) }`. Type `ServicesConfig`.
-  - `project.ts` : `projectEntrySchema` = `{ name: z.string().regex(/^[a-z0-9-]+$/), repo: z.string().min(1), subdomain: z.string().regex(/^[a-z0-9-]+$/), branch: z.string().default("main") }`. Type `ProjectEntry`.
-
-### Sous-tâche 4 : Schéma racine + invariant cross-field
-- **Fichiers** : `src/schemas/config.ts`
-- **Effort estimé** : 20 min
-- **Détail** : `arcConfigSchema` z.object combinant tous les sous-schémas, avec `target: z.enum(["local","vps"])`, `email: z.string().email()`, `domain` validé via regex de domaine simple, `project: z.string().regex(/^[a-z0-9-]+$/)`, `projects: z.array(projectEntrySchema).default([])`. Ajouter `.superRefine((cfg, ctx) => …)` qui :
-  - Si `cfg.target === "vps"` et `!cfg.provider` → ajoute une issue path `["provider"]`
-  - Détecte les doublons dans `cfg.projects[].subdomain` → issue path `["projects"]`
-  Type `ArcConfig = z.infer<typeof arcConfigSchema>`.
-
-### Sous-tâche 5 : Barrel + re-export public
-- **Fichiers** : `src/schemas/index.ts`, `src/index.ts`
-- **Effort estimé** : 5 min
-- **Détail** : `src/schemas/index.ts` exporte tous les schémas et types. `src/index.ts` ajoute `export * from "./schemas/index.js"` (en plus du `ARC_SHARED_VERSION` existant).
-
-### Sous-tâche 6 : Tests Vitest
-- **Fichiers** : `src/schemas/config.test.ts`
-- **Effort estimé** : 25 min
-- **Détail** : Au moins 6 cas couverts :
-  1. ✅ Config valide minimale `target: "local"` (sans provider)
-  2. ✅ Config valide complète `target: "vps"` avec provider, dns, stack, backups, services, projects
-  3. ❌ `email` invalide → issue sur `["email"]`
-  4. ❌ `target: "azure"` (valeur hors enum) → issue
-  5. ❌ `target: "vps"` sans `provider` → issue sur `["provider"]`
-  6. ❌ Deux projets avec même `subdomain` → issue sur `["projects"]`
-  7. ✅ Bonus : valeurs par défaut appliquées (parse retourne `paas: "coolify"`, `tunnel: false`, `branch: "main"`)
-
-### Sous-tâche 7 : Vérif + commit + PR
+### Sous-tâche 2 : ConfigError + formatZodError
+- **Fichiers** : `packages/arc-cli/src/config/errors.ts`
 - **Effort estimé** : 15 min
-- **Détail** : Inclure aussi les artefacts pendants de CLI-002 (tasks/INDEX, tasks/current, archive). `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. Vérifier que `arc-cli` re-build sans casse (consomme `@euglowlabs/arc-shared` mais n'utilise pas encore les schémas). Branche `feat/CLI-003-arc-config-schema`. Commit `feat(shared): add zod schema for arc.config.yml [CLI-003]`. Push, PR, attendre CI verte, merger.
+- **Détail** : Classe `ConfigError extends Error` avec :
+  - `kind: "not-found" | "syntax" | "schema"` — discriminant
+  - `path: string` — chemin du fichier source (toujours présent)
+  - `issues?: string[]` — pour `kind: "schema"`
+  - `cause?: Error` — l'erreur d'origine (yaml ou fs)
+  - `toUserMessage(): string` — formate selon `kind` :
+    - `not-found` : `"Config file not found: <path>"`
+    - `syntax` : `"Invalid YAML at <path>:<line>:<col> — <message>"`
+    - `schema` : `"Invalid arc.config.yml at <path>:\n  - <field>: <msg>\n  - <field>: <msg>"`
+  - Helper `formatZodError(error: ZodError): string[]` qui transforme chaque issue en `"path.to.field: message"`.
+
+### Sous-tâche 3 : loadArcConfig
+- **Fichiers** : `packages/arc-cli/src/config/load.ts`
+- **Effort estimé** : 20 min
+- **Détail** : `export async function loadArcConfig(filePath: string): Promise<ArcConfig>` qui :
+  1. `readFile(filePath, "utf8")` → catch `ENOENT` → throw `ConfigError("not-found")`
+  2. `YAML.parse(raw, ...)` → catch `YAMLParseError` → extraire `linePos` → throw `ConfigError("syntax")`
+  3. `arcConfigSchema.safeParse(parsed)` → si `!success` → `ConfigError("schema", issues = formatZodError(error))`
+  4. Sur succès, retourner `result.data` (typé `ArcConfig` via inference).
+  Imports : `node:fs/promises`, `yaml`, `@euglowlabs/arc-shared`, `./errors.js`.
+
+### Sous-tâche 4 : Fixtures YAML
+- **Fichiers** : 4 fichiers sous `packages/arc-cli/src/config/__fixtures__/`
+- **Effort estimé** : 10 min
+- **Détail** :
+  - `valid-local.yml` — config minimale `target: local` (pas de provider)
+  - `valid-vps.yml` — config complète avec provider Hetzner + projects + ollama models
+  - `invalid-yaml.yml` — YAML cassé (ex: indentation incohérente, `:` manquant)
+  - `invalid-schema.yml` — YAML valide mais `email` malformé + `target: azure` (deux issues)
+
+### Sous-tâche 5 : Tests Vitest
+- **Fichiers** : `packages/arc-cli/src/config/load.test.ts`, `packages/arc-cli/src/config/index.ts` (barrel re-export)
+- **Effort estimé** : 25 min
+- **Détail** : `import.meta.url` + `fileURLToPath` pour résoudre le chemin des fixtures. 5 cas :
+  1. Valid minimal local → `target === "local"`, `provider === undefined`
+  2. Valid complet vps → `target === "vps"`, `provider.plan === "cx32"`
+  3. Fichier absent → `ConfigError`, `kind === "not-found"`, message contient le path
+  4. YAML invalide → `ConfigError`, `kind === "syntax"`, `toUserMessage()` mentionne `:line:`
+  5. Schéma invalide multi-issues → `ConfigError`, `kind === "schema"`, `issues.length >= 2`, message lisible
+  Barrel `src/config/index.ts` re-exporte `loadArcConfig`, `ConfigError`.
+
+### Sous-tâche 6 : Vérif + commit + PR
+- **Fichiers** : aucun nouveau
+- **Effort estimé** : 15 min
+- **Détail** : Inclure aussi les artefacts pendants de CLI-003 (tasks/INDEX, tasks/current, archive). Ajustement `tsconfig.json` arc-cli si Vitest plante sur les fixtures (devrait être OK, tsconfig exclut déjà `**/*.test.ts` mais inclut tout `src/**/*` — vérifier que les `.yml` ne plantent pas tsc, normalement non car non importés). `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. Branche `feat/CLI-004-config-loader`. Commit `feat(cli): load and validate arc.config.yml [CLI-004]`. Push, PR, attendre CI verte, merger.
 
 ## Scratchpad
 
 ### Décisions ouvertes — à valider avant de coder
-- **snake_case dans les schémas** : adopté pour matcher 1:1 le YAML, simplifie le futur load (CLI-004, pas de transformation). Type marqué "boundary type" en JSDoc. Si on veut camelCase côté code applicatif plus tard, on ajoutera un mapper séparé. Pas d'ADR nécessaire (convention locale, réversible).
-- **Localisation de `arcConfigSchema`** : dans `arc-shared`, pas `arc-cli`. Justifié : Agent et Cloud le consommeront aussi (validation côté serveur). ADR-0001 (monorepo) couvre.
-- **Validation `domain`** : regex simple `/^[a-z0-9.-]+\.[a-z]{2,}$/i`, pas full RFC. La spec n'exige pas une validation parfaite ; on accepte le compromis pour éviter une dépendance lourde.
-- **`tunnel: true` autorisé en target=vps** : on ne bloque pas, l'utilisateur peut vouloir un tunnel sur VPS aussi (cas d'étude). À documenter en JSDoc, pas dans `superRefine`.
+- **Lib YAML** : `yaml` (eemeli/yaml) choisi car robust + erreurs avec positions. Alternatives rejetées : `js-yaml` (plus ancien, erreurs moins riches), `yaml-ast-parser` (low-level, overkill). Pas d'ADR (tooling local).
+- **API throw vs Result** : on **throw** `ConfigError` (idiome Node, plus simple côté appelant). Si on avait un cadre fp, on utiliserait Result. À reconsidérer si on adopte un pattern Result global (hors scope CLI-004).
+- **Async only** : `loadArcConfig` est async (utilise `node:fs/promises`). Pas de version sync — usage CLI très tolérant à l'async.
+- **Pas d'interpolation `${VAR}`** : la spec infra §5.5 montre `api_token: ${CLOUDFLARE_TOKEN}`. Cette interpolation est volontairement reportée (probable nouvelle tâche CLI-004b ou intégrée à CLI-005). On accepte les `${...}` comme strings littérales pour l'instant.
 
 ### Notes
-- zod 3.x stable. Pas besoin de zod 4 alpha.
-- Pas de dépendance Node native dans `arc-shared` → pas besoin de `@types/node` ici.
-- Le test sera `Vitest` collocated `src/schemas/config.test.ts` selon `testing.md`.
-- Les sous-schémas sont des objets `z.object(...)` *sans* `.passthrough()` ni `.strict()` par défaut. Décision : `.strict()` sur le schéma racine pour bloquer les clés inconnues (évite typos silencieux dans `arc.config.yml`). À acter en sous-tâche 4.
+- Le chemin des fixtures : `import.meta.url` puis `fileURLToPath` + `path.dirname` + jointure. Pattern ESM standard.
+- Au runtime : `tsc -p tsconfig.json` exclut déjà `**/*.test.ts`, donc le test ne sera pas inclus dans `dist/`. Les fixtures `.yml` ne sont pas importées comme modules, donc TS ne les voit pas.
+- `arcConfigSchema.safeParse` retourne `{ success: false, error: ZodError }` — on n'utilise pas `.parse()` (qui throw une `ZodError` brute, moins ergonomique pour notre `ConfigError`).

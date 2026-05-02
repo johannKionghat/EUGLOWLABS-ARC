@@ -1,0 +1,11 @@
+# Minimal local config — no provider, defaults applied to stack/backups/services.
+project: johann-stack
+target: local
+domain: mondomaine.dev
+email: johann@mondomaine.dev
+
+dns:
+  provider: cloudflare
+  zone: mondomaine.dev
+  api_token: cf-token-placeholder
+  tunnel: true
