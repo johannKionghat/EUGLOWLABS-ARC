@@ -19,7 +19,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ INFRA-004 — Config Vitest par package (orchestré par Turbo, pas de workspace) *(absorbée par INFRA-001)*
 - ✅ INFRA-005 — `.gitignore`, `.editorconfig`, `.tool-versions` *(absorbée par INFRA-001)*
 - ✅ INFRA-006 — GitHub Actions CI : Node + Go *(absorbée par INFRA-001)*
-- 🟡 INFRA-007 — Hook `commit-msg` (Conventional Commits + TASK-ID) via lefthook
+- ✅ INFRA-007 — Hook `commit-msg` (Conventional Commits + TASK-ID) via lefthook (2026-05-02)
 - ⬜ INFRA-008 — Setup Changesets pour versionning packages npm
 - ⬜ INFRA-009 — README racine (présentation produit + quickstart contributeur)
 - ⬜ INFRA-010 — Workflow GitHub Actions de release (publish npm dry-run)
@@ -28,7 +28,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 ## Phase 1 — CLI MVP (semaines 2-4)
 
-- ⬜ CLI-001 — Squelette clipanion + commande `arc version`
+- 🟡 CLI-001 — Squelette clipanion + commande `arc version`
 - ⬜ CLI-002 — Commande `arc help` + branding ASCII
 - ⬜ CLI-003 — Schéma zod de `arc.config.yml` (dans `arc-shared`)
 - ⬜ CLI-004 — Loader `arc.config.yml` avec validation zod et messages d'erreur clairs
