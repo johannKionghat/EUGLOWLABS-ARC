@@ -21,7 +21,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ INFRA-006 — GitHub Actions CI : Node + Go *(absorbée par INFRA-001)*
 - ✅ INFRA-007 — Hook `commit-msg` (Conventional Commits + TASK-ID) via lefthook (2026-05-02)
 - ✅ INFRA-008 — Setup Changesets pour versionning packages npm (2026-05-02)
-- ⬜ INFRA-009 — README racine (présentation produit + quickstart contributeur)
+- ✅ INFRA-009 — README racine (présentation produit + quickstart contributeur) (2026-05-02)
 - ⬜ INFRA-010 — Workflow GitHub Actions de release (publish npm dry-run)
 
 ---
