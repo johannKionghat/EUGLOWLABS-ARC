@@ -1,4 +1,4 @@
-import { ARC_SHARED_VERSION } from "@euglowlabs/arc-shared";
+#!/usr/bin/env node
+import { buildCli } from "./cli.js";
 
-export const ARC_CLI_VERSION = "0.0.0";
-export const ARC_SHARED_AT_BUILD = ARC_SHARED_VERSION;
+void buildCli().runExit(process.argv.slice(2));
