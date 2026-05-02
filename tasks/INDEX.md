@@ -20,7 +20,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ INFRA-005 — `.gitignore`, `.editorconfig`, `.tool-versions` *(absorbée par INFRA-001)*
 - ✅ INFRA-006 — GitHub Actions CI : Node + Go *(absorbée par INFRA-001)*
 - ✅ INFRA-007 — Hook `commit-msg` (Conventional Commits + TASK-ID) via lefthook (2026-05-02)
-- ⬜ INFRA-008 — Setup Changesets pour versionning packages npm
+- ✅ INFRA-008 — Setup Changesets pour versionning packages npm (2026-05-02)
 - ⬜ INFRA-009 — README racine (présentation produit + quickstart contributeur)
 - ⬜ INFRA-010 — Workflow GitHub Actions de release (publish npm dry-run)
 
@@ -55,7 +55,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-025 — Compilation single binary `bun build --compile` cross-target (Linux/macOS/Win) (2026-05-02)
 - ✅ CLI-026 — Publication npm `@euglowlabs/arc-cli` + Homebrew tap (2026-05-02)
 - ✅ CLI-027 — Script `install.sh` curl-friendly + endpoint `arc.euglowlabs.com/install.sh` (2026-05-02)
-- 🟡 CLI-028 — Telemetry opt-in (commande `arc config telemetry on/off`)
+- ✅ CLI-028 — Telemetry opt-in (commande `arc config telemetry on/off`) (2026-05-02)
 
 ---
 
