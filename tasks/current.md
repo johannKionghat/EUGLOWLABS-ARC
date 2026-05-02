@@ -1,19 +1,19 @@
-# Tâche : CLI-014 — State management `.infra/state.json`
+# Tâche : CLI-015 — `arc status`
 
 ## Statut
 🟡 En cours — 2026-05-02
 
 ## Objectif
-Source de vérité local de ce qui a été déployé. Lecture, écriture, diff. Spec-infra §5.3 layer "State `.infra/state.json`".
+Health check : lit l'état + ping `docker compose ps` via adapter, rapporte les services up/down. Surface CLI clipanion.
 
 ## Critères
-- [ ] Schéma zod du state (project, lastDeploy, services, files written)
-- [ ] `readState(path)`, `writeState(path, state)`, `diffState(prev, next)`
-- [ ] Tests sur tmpdir
+- [ ] `checkStatus(adapter, opts)` fonction pure
+- [ ] `StatusCommand` clipanion
+- [ ] Tests MockAdapter
 - [ ] CI verte, PR mergée
 
 ## Plan
-1. Schéma + types (10 min)
-2. read/write/diff (20 min)
-3. Tests (15 min)
+1. `checkStatus` (15 min)
+2. `StatusCommand` + wiring (10 min)
+3. Tests (10 min)
 4. Vérif + PR (10 min)
