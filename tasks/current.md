@@ -1,27 +1,32 @@
-# Aucune tâche active
+# Tâche en cours : CLI-011 — `VPSAdapter` via node-ssh + Hetzner SDK
 
-Pour démarrer une tâche, lance :
+## Statut
+🟡 En cours — démarrée le 2026-05-02
 
-    /arc-task-start [TASK-ID]
+## Objectif
+Deuxième impl concrète de `ExecutionAdapter` (CLI-009). SSH via `node-ssh`, SFTP upload, lecture FS distante via `cat`. Provisioning Hetzner extrait dans `provisionHetzner(provider)` séparé.
 
-## Prochaine tâche suggérée
+## Critères
+- [ ] `VPSAdapter` implémente `ExecutionAdapter` via node-ssh
+- [ ] `provisionHetzner(provider)` skeleton (création VPS via SDK)
+- [ ] `describe(): "vps:<host>"`
+- [ ] Tests structurels (pas de E2E SSH — AGENT-012)
+- [ ] Lint/typecheck/build verts, CI verte, PR mergée
 
-**CLI-010** — `LocalAdapter` via execa (exec, copyFile, stream stdout)
-*Phase 1 — CLI MVP*
+## ADRs
+ADR-0009 (impl VPS), ADR-0001, ADR-0002
 
-Estimation : ~1h. Première implémentation concrète de `ExecutionAdapter` (CLI-009). Utilise `execa` pour exécuter des commandes shell sur la machine de l'opérateur (cwd, env, streaming par chunk via `stdout.on("data")`), `node:fs/promises` pour `copyFile`/`readFile`/`fileExists`. Sert dès `arc deploy --target=local` (CLI-012). Dépend de CLI-009 ✅.
+## Hors scope
+E2E SSH/Hetzner (AGENT-012), mocking complet node-ssh, commande clipanion (CLI-012), lifecycle complexe.
 
-CLI-011 (`VPSAdapter` via node-ssh + Hetzner) suit la même structure côté distant.
+## Plan
+1. Deps `node-ssh` + Hetzner SDK
+2. `VPSAdapter` lazy connect
+3. `provisionHetzner` skeleton
+4. Tests structurels
+5. Vérif + commit + PR
 
-## Alternatives raisonnables
-
-- **CLI-011** — `VPSAdapter` directement. On aurait les deux adapters complets avant `arc deploy`, mais Local est plus simple à valider — démarrer par Local est plus prudent.
-- **AGENT-001** — Skeleton Go ARC Agent (Phase 2). Variation de stack après 9 PRs CLI consécutives.
-- **INFRA-009** — README racine.
-- **CLI-014** — State management `.infra/state.json`. Orthogonal, peut s'enchaîner sans dép.
-
-## État du projet
-- Phase 0 : 7/10
-- Phase 1 : 9/28 (CLI-001 → 009 ✅)
-- PRs mergées : 11
-- Tests Vitest : 43 (arc-cli 35 + arc-shared 8)
+## Scratchpad
+- Lazy connect
+- `provisionHetzner` séparé du VPSAdapter
+- Tests minimaux (E2E reportés AGENT-012)
