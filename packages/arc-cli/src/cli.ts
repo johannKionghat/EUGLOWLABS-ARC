@@ -11,6 +11,7 @@ import { ProjectAddCommand, ProjectDeployCommand, ProjectListCommand } from "./c
 import { RestartCommand } from "./commands/restart.js";
 import { RestoreCommand } from "./commands/restore.js";
 import { StatusCommand } from "./commands/status.js";
+import { TelemetryConfigCommand } from "./commands/telemetry.js";
 import { VersionCommand } from "./commands/version.js";
 import { VERSION } from "./version.js";
 
@@ -41,6 +42,7 @@ export function buildCli(): Cli<BaseContext> {
   cli.register(ProjectListCommand);
   cli.register(ProjectDeployCommand);
   cli.register(MigrateCommand);
+  cli.register(TelemetryConfigCommand);
 
   return cli;
 }
