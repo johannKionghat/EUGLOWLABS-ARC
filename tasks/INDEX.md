@@ -47,8 +47,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-017 — Commande `arc restart <service>` (2026-05-02)
 - ✅ CLI-018 — Commande `arc backup` (pg_dumpall + snapshots volumes) (2026-05-02)
 - ✅ CLI-019 — Upload backups vers Cloudflare R2 via rclone wrapper (2026-05-02)
-- 🟡 CLI-020 — Commande `arc restore <backup-id>` avec liste interactive
-- ⬜ CLI-021 — Commande `arc project add <name>` (Coolify API + create DB)
+- ✅ CLI-020 — Commande `arc restore <backup-id>` avec liste interactive (2026-05-02)
+- 🟡 CLI-021 — Commande `arc project add <name>` (Coolify API + create DB)
 - ⬜ CLI-022 — Commande `arc project list` + `arc project deploy <name>`
 - ⬜ CLI-023 — Commande `arc migrate --from=local --to=<vps-ip>`
 - ⬜ CLI-024 — Cloudflare Tunnel auto en mode `target: local`
