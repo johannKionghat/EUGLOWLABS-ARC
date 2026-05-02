@@ -7,6 +7,7 @@ import { HelpCommand } from "./commands/help.js";
 import { InitCommand } from "./commands/init.js";
 import { LogsCommand } from "./commands/logs.js";
 import { RestartCommand } from "./commands/restart.js";
+import { RestoreCommand } from "./commands/restore.js";
 import { StatusCommand } from "./commands/status.js";
 import { VersionCommand } from "./commands/version.js";
 import { VERSION } from "./version.js";
@@ -33,6 +34,7 @@ export function buildCli(): Cli<BaseContext> {
   cli.register(LogsCommand);
   cli.register(RestartCommand);
   cli.register(BackupCommand);
+  cli.register(RestoreCommand);
 
   return cli;
 }

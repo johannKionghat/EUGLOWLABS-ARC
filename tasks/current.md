@@ -1,2 +1,2 @@
-# CLI-019 — Upload backups vers R2 via rclone
-🟡 — `rclone copy` via adapter, vers le remote R2 configuré.
+# CLI-020 — `arc restore`
+🟡 — list backups dans dir, restaure pg_dump dans postgres container, restaure volumes via tar -xzf via container alpine.
