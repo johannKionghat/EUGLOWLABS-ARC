@@ -3,6 +3,17 @@
 **EuglowLabs ARC** (Autonomous Resource Cloud) est un produit de **EuglowLabs**.
 Il transforme un VPS en plateforme self-hosted complète (Vercel + Supabase + Ollama-like) via un CLI unique et un cockpit unifié.
 
+## 🎯 Mode actuel
+
+**CHANTIER 1 EN COURS** — toute tâche Chantier 2 gelée jusqu'à validation utilisateur explicite (voir [ADR-0013](docs/03-architecture-decisions/0013-chantier-1-2-separation.md)).
+
+- 🔨 **Chantier 1 actif** : CLI `arc`, stack déployée (Coolify + local-ai-packaged + sandbox + agents), Dashboard self-hosted Niveau 1, ARC Agent en Go, migration des 4 projets, tests E2E + doc.
+- 🧊 **Chantier 2 gelé** : ARC Cloud, Auth Clerk, Stripe, Sentinel, Marketplace, API publique + SDKs, Webhooks, Plugin system, pages Dashboard Niveau 2/3.
+
+Le passage Chantier 1 → 2 nécessite **les 5 critères de validation** (cf. `tasks/CHANTIER-1-VALIDATION.md`) **et** un message exact `"go chantier 2"` de l'utilisateur dans la conversation.
+
+**Modèle d'install actif** : single-machine (ADR-0012) — l'utilisateur SSH dans son VPS, lance `arc setup` sur place. Plus de mode dual `local | vps`. ADR-0009 superseded.
+
 ## Source de vérité
 
 Deux specs gouvernent le projet — toute décision doit s'y rattacher :
@@ -21,6 +32,7 @@ Tout désaccord avec ces docs nécessite un ADR avant action.
 
 ## Règles non-négociables
 
+- **JAMAIS démarrer une tâche située dans `tasks/backlog/chantier-2-deferred/`** sans message explicite de l'utilisateur `"go chantier 2"`. Même si l'utilisateur semble demander une feature Chantier 2 en passant, tu refuses et tu rappelles ADR-0013. Tant que les 5 critères de `tasks/CHANTIER-1-VALIDATION.md` ne sont pas tous cochés ET que l'utilisateur n'a pas envoyé `"go chantier 2"`, le périmètre Chantier 2 reste interdit.
 - **TypeScript strict** (`strict: true`, `noUncheckedIndexedAccess`), **zéro `any`** sans justification commentée
 - **Tests obligatoires** pour toute logique métier (Vitest pour TS, `go test` pour Agent)
 - **1 PR = 1 tâche < 2h** de travail. Si ça déborde → découper.
@@ -41,7 +53,7 @@ Tout désaccord avec ces docs nécessite un ADR avant action.
 | ARC Cloud (SaaS) | Next.js 15 + Drizzle + Clerk + Stripe + Supabase managed | ADR-0010 |
 | Postgres partagé | Supabase self-hosted via `local-ai-packaged`, 1 DB par projet | ADR-0007 |
 | Réseaux Docker | `prod_net`, `ai_net`, `sandbox_net` (`internal: true`) | ADR-0008 |
-| Mode dual | `target: local | vps` dans `arc.config.yml`, pattern adapter | ADR-0009 |
+| Modèle install | Single-machine sur la cible, `arc setup` exécute Ansible en `localhost` | ADR-0012 *(supersede ADR-0009)* |
 | Licence OSS | Apache 2.0 (CLI, Agent, Dashboard) ; ARC Cloud closed | ADR-0006 |
 
 ## Naming (cf. `docs/04-conventions/naming.md`)

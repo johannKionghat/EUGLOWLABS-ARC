@@ -1,7 +1,10 @@
 # INDEX des tâches — EuglowLabs ARC
 
-Source de vérité pour l'avancement du projet.
+Source de vérité pour l'avancement du projet **Chantier 1**.
 Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la redécouper.
+
+> 🎯 **CHANTIER 1 EN COURS** — voir [ADR-0013](../docs/03-architecture-decisions/0013-chantier-1-2-separation.md).
+> Tâches Chantier 2 (Cloud, Sentinel, Marketplace, API/SDKs/Plugins, pages Dashboard Niveau 2/3) → `tasks/backlog/chantier-2-deferred/`. **Ne pas les démarrer** sans `"go chantier 2"`.
 
 ## Légende
 - ⬜ Non commencée
@@ -11,7 +14,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 ---
 
-## Phase 0 — Setup monorepo & tooling (semaine 1)
+## Phase 0 — Setup monorepo & tooling ✅
 
 - ✅ INFRA-001 — Setup monorepo Turborepo + pnpm workspaces (5 packages placeholders) (2026-05-02)
 - ✅ INFRA-002 — Config Biome (lint + format) racine + scripts pnpm *(absorbée par INFRA-001)*
@@ -26,7 +29,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 ---
 
-## Phase 1 — CLI MVP (semaines 2-4)
+## Phase 1 — CLI MVP ✅ *(modèle dual ADR-0009 — refactor en Phase 1.5)*
 
 - ✅ CLI-001 — Squelette clipanion + commande `arc version` (2026-05-02)
 - ✅ CLI-002 — Commande `arc help` + branding ASCII (2026-05-02)
@@ -36,9 +39,9 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-006 — Génération templates eta : `docker-compose.prod.yml`, `.env` (2026-05-02)
 - ✅ CLI-007 — Génération template `docker-compose.sandbox.yml` avec isolation (2026-05-02)
 - ✅ CLI-008 — Génération template `docker-compose.agents.yml` (OpenClaw + DeepAgents) (2026-05-02)
-- ✅ CLI-009 — Adapter abstrait `ExecutionAdapter` interface (cf. ADR-0009) (2026-05-02)
-- ✅ CLI-010 — `LocalAdapter` via execa (exec, copyFile, stream stdout) (2026-05-02)
-- ✅ CLI-011 — `VPSAdapter` via node-ssh + Hetzner SDK (provisioning, exec distant) (2026-05-02)
+- ✅ CLI-009 — Adapter abstrait `ExecutionAdapter` interface *(refactor Phase 1.5 — `LocalAdapter` → `HostAdapter` unique)*
+- ✅ CLI-010 — `LocalAdapter` via execa (2026-05-02) *(renommage en Phase 1.5)*
+- ✅ CLI-011 — `VPSAdapter` via node-ssh + Hetzner SDK (2026-05-02) ⛔ **À supprimer en Phase 1.5 — ADR-0012**
 - ✅ CLI-012 — Commande `arc deploy` orchestrant adapter + Ansible playbooks (2026-05-02)
 - ✅ CLI-013 — Intégration Ansible : invocation playbook + stream output (2026-05-02)
 - ✅ CLI-014 — State management `.infra/state.json` (lecture/écriture/diff) (2026-05-02)
@@ -50,20 +53,48 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ CLI-020 — Commande `arc restore <backup-id>` avec liste interactive (2026-05-02)
 - ✅ CLI-021 — Commande `arc project add <name>` (Coolify API + create DB) (2026-05-02)
 - ✅ CLI-022 — Commande `arc project list` + `arc project deploy <name>` (2026-05-02)
-- ✅ CLI-023 — Commande `arc migrate --from=local --to=<vps-ip>` (2026-05-02)
-- ✅ CLI-024 — Cloudflare Tunnel auto en mode `target: local` (2026-05-02)
-- ✅ CLI-025 — Compilation single binary `bun build --compile` cross-target (Linux/macOS/Win) (2026-05-02)
+- ✅ CLI-023 — Commande `arc migrate --from=local --to=<vps-ip>` (2026-05-02) ⛔ **À supprimer en Phase 1.5 — ADR-0012**
+- ✅ CLI-024 — Cloudflare Tunnel auto en mode `target: local` (2026-05-02) ⛔ **À supprimer en Phase 1.5 — ADR-0012**
+- ✅ CLI-025 — Compilation single binary `bun build --compile` cross-target (2026-05-02)
 - ✅ CLI-026 — Publication npm `@euglowlabs/arc-cli` + Homebrew tap (2026-05-02)
 - ✅ CLI-027 — Script `install.sh` curl-friendly + endpoint `arc.euglowlabs.com/install.sh` (2026-05-02)
 - ✅ CLI-028 — Telemetry opt-in (commande `arc config telemetry on/off`) (2026-05-02)
 
 ---
 
-## Phase 2 — ARC Agent (semaines 5-6)
+## Phase 1.5 — Refactor ADR-0012 (single-machine)
+
+> Supersede ADR-0009. Voir [ADR-0012](../docs/03-architecture-decisions/0012-single-machine-install.md) et [`docs/refactor-0012-inventory.md`](../docs/refactor-0012-inventory.md).
+
+- ⬜ REFACTOR-001 — Suppression chirurgicale code 🟥 (vps.ts, provision.ts, migrate, cloudflared, valid-vps.yml, schemas/provider.ts, dep `node-ssh`)
+- ⬜ REFACTOR-002 — Refactor 🟧 + renommage `LocalAdapter` → `HostAdapter`, schéma config sans `target`/`provider`/`tunnel`, ajout `agent: { bind, port }`
+- ⬜ REFACTOR-003 — Audit "zéro résidu" (4 greps vides) + rapport completion + déplacement archives concernées
+- ⬜ **DOC-001** — `docs/migration-guide.md` (livrable critique : seul artefact de migration côté produit). Doit contenir :
+  - **§1 — Migrer une app existante vers ARC** : commandes copiables, du dump source jusqu'à `arc project add` + `git push`, en moins de 30 min. Couvre **3 cas** (chacun avec sa procédure pas-à-pas testée à blanc) :
+    - **§1.a — Next.js + Postgres simple** (cas le plus commun)
+    - **§1.b — App utilisant Supabase** (auth, storage, realtime, edge functions) — équivalence vers le Supabase self-hosted intégré au bundle `local-ai-packaged`
+    - **§1.c — App full Vercel** (Postgres + KV + Blob) — équivalences ARC : Postgres self-hosted, Redis maison ou Upstash, MinIO ou R2 pour le blob storage
+    Couvre critère C1 d'ADR-0011.
+  - **§2 — Déplacer un projet d'une instance ARC à une autre** (`arc backup` sur A → `scp` → `arc restore` sur B). Commandes copiables.
+  - **§3 — Dupliquer une instance ARC en staging** (snapshot complet + restore sur VPS dédié, env vars différents).
+  - **§4 — Installer ARC sans IP publique** (cas RPi à la maison, WSL2) : install manuelle de `cloudflared`, configuration tunnel pointant sur les services ARC, ce que ça remplace fonctionnellement.
+  - **§5 — Rollback** : revenir à un état antérieur avec `arc restore <backup-id>` quand un déploiement casse.
+  - **§6 — Troubleshooting** : 5 cas fréquents (DNS pas propagé, certif Let's Encrypt en échec, Coolify inaccessible, Postgres OOM, sandbox bloque legitimement le code agent).
+  *(Mitigation obligatoire des P2 + P3 d'ADR-0012. Vérifié à blanc avant validation Chantier 1.)*
+- ⬜ INSTALL-001 — Commande `arc setup` all-in-one (questions interactives → écrit `~/.arc/arc.config.yml` → exécute Ansible local → bootstrap stack)
+- ⬜ ANSIBLE-001 — Rôles Ansible (hardening UFW + fail2ban, docker, coolify, ai-stack, sandbox, backups) exécutés en `localhost`
+- ⬜ DNS-001 — Cloudflare DNS records via API (A wildcard pointant sur l'IP publique de la machine)
+- ⬜ E2E-001 — Test bout-en-bout sur VM jetable (CI nightly, ~0,02 €/run)
+
+---
+
+## Phase 2 — ARC Agent (Go) — Chantier 1
+
+> Auth en Chantier 1 = **token local statique** généré par `arc setup` (cf. ADR-0013). Pas de token rotatif Cloud-signed (Chantier 2).
 
 - ⬜ AGENT-001 — Skeleton Go + Makefile + cross-compilation linux/amd64+arm64
 - ⬜ AGENT-002 — HTTP server chi + middleware logging/recover
-- ⬜ AGENT-003 — Auth middleware : token signé par ARC Cloud (HMAC), rotation 24h
+- ⬜ AGENT-003 — Auth middleware : token local statique (généré par `arc setup`, lu depuis `~/.arc/agent-token`)
 - ⬜ AGENT-004 — Endpoint `GET /v1/status` (état global VPS)
 - ⬜ AGENT-005 — Endpoint `GET /v1/projects` (proxy Coolify API)
 - ⬜ AGENT-006 — Endpoint `GET /v1/services` (Docker SDK list containers)
@@ -72,13 +103,15 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ⬜ AGENT-009 — WebSocket `/v1/stream` (gorilla/websocket) — metrics live
 - ⬜ AGENT-010 — Collecteur Prometheus (CPU, RAM, disk, containers)
 - ⬜ AGENT-011 — TLS auto-signé + pinning côté Dashboard
-- ⬜ AGENT-012 — Test E2E : `arc deploy` + Agent répond aux endpoints
+- ⬜ AGENT-012 — Test E2E : `arc setup` + Agent répond aux endpoints
 - ⬜ AGENT-013 — Release binaire GitHub Releases (CI matrix)
-- ⬜ AGENT-014 — Intégration Agent dans `arc deploy` (installation auto)
+- ⬜ AGENT-014 — Intégration Agent dans `arc setup` (installation auto)
 
 ---
 
-## Phase 3 — ARC Dashboard Niveau 1 (semaines 7-9)
+## Phase 3 — Dashboard Niveau 1 self-hosted — Chantier 1
+
+> Pages Niveau 2/3 (`/topology`, `/business`, `/sandbox`, `/compliance`, `/cross-env`, `/marketplace`, `/copilot`, `/team`, `/billing`) sont Chantier 2 — voir `tasks/backlog/chantier-2-deferred/`.
 
 - ⬜ DASH-001 — Bootstrap Next.js 15 App Router + Tailwind + shadcn/ui
 - ⬜ DASH-002 — Layout principal + sidebar + theme dark/light
@@ -98,71 +131,31 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 ---
 
-## Phase 4 — ARC Cloud MVP (semaines 10-13)
+## Phase 4 — Validation infra à vide (avant toute migration)
 
-- ⬜ CLOUD-001 — Bootstrap Next.js 15 + Drizzle + Postgres (Supabase managed)
-- ⬜ CLOUD-002 — Schéma Drizzle : User, Org, Membership, VPS, Project, ApiKey
-- ⬜ CLOUD-003 — Migrations Drizzle + seed dev
-- ⬜ CLOUD-004 — Intégration Clerk (signup, login, OAuth GitHub/Google)
-- ⬜ CLOUD-005 — Création d'org au signup + invitations membres
-- ⬜ CLOUD-006 — Permissions RBAC (owner/admin/member/viewer) middleware
-- ⬜ CLOUD-007 — Endpoint `POST /v1/vps/register` consommé par `arc cloud connect`
-- ⬜ CLOUD-008 — Génération + rotation token VPS pour ARC Agent
-- ⬜ CLOUD-009 — Intégration Stripe : produits Hobby/Pro/Team/Business
-- ⬜ CLOUD-010 — Webhooks Stripe : subscription created/updated/canceled
-- ⬜ CLOUD-011 — Page `/billing` (Stripe Customer Portal embed)
-- ⬜ CLOUD-012 — Page `/team` : liste membres + invitations
-- ⬜ CLOUD-013 — Connexion Dashboard self-host ↔ ARC Cloud (via API key)
-- ⬜ CLOUD-014 — Lancement waitlist beta + emails Resend transactionnels
+> **Phase finale du Chantier 1.** Logique : si Coolify / Postgres / Ollama / sandbox plante, on corrige avant que le produit ne soit "livré". Couvre les critères infra (catégorie B) d'[ADR-0011](../docs/03-architecture-decisions/0011-end-to-end-install-acceptance.md).
+>
+> Les **migrations des 4 projets de l'auteur** (EuglowLabs, InfinixUI, InfinixLoop, EduMatch) **ne sont pas dans cet INDEX** : ce sont des actes d'utilisation post-livraison, pas du dev. Cf. ADR-0011 §"Important — Migration des projets ≠ critère de livraison".
+
+- ⬜ VALIDATE-001 — Vérification que tous les modules de la stack répondent sur leur port (Coolify, Supabase Studio, Ollama, n8n, Open WebUI, OpenClaw, DeepAgents, Uptime Kuma)
+- ⬜ VALIDATE-002 — Test SSL Let's Encrypt sur tous les sous-domaines (`coolify`, `supabase`, `chat`, `n8n`, `flowise`, `langfuse`, `status`, `openclaw`, `agents`, `dashboard`)
+- ⬜ VALIDATE-003 — Test isolation sandbox (curl google.com depuis sandbox = échec ; ping autres réseaux = échec ; FS read-only effectif)
+- ⬜ VALIDATE-004 — Test backup automatique (cron tourne, pg_dumpall valide, upload R2 OK)
+- ⬜ VALIDATE-005 — Test restore depuis backup sur DB de test vide (checksum identique)
+- ⬜ VALIDATE-006 — Test hardening VPS (UFW actif, fail2ban actif, SSH par clé uniquement)
+- ⬜ VALIDATE-007 — Dashboard self-hosted Niveau 1 affiche correctement tous les services (Overview, Projects, AI-Stack, Settings)
 
 ---
 
-## Phase 5 — AI Copilot Sentinel
+## 🧊 Chantier 2 — DEFERRED
 
-- ⬜ SENTINEL-001 — Architecture LangGraph (planner + tools)
-- ⬜ SENTINEL-002 — Tools : `get_project_status`, `get_logs`, `get_metrics`
-- ⬜ SENTINEL-003 — Tools : `restart_service`, `deploy`, `backup` avec confirmation 2FA
-- ⬜ SENTINEL-004 — UI chat dans Dashboard `/copilot` (Vercel AI SDK streaming)
-- ⬜ SENTINEL-005 — Routing modèles : Ollama (Hobby), Claude/GPT (Pro+)
-- ⬜ SENTINEL-006 — Memory pgvector : historique conversations par user
-- ⬜ SENTINEL-007 — Audit log de toutes les actions Sentinel + reversibilité
+Tout le périmètre Cloud / Sentinel / Marketplace / API+SDKs+Plugins / Dashboard Niveau 2-3 est gelé jusqu'à validation explicite. Voir :
 
----
+- `tasks/backlog/chantier-2-deferred/README.md`
+- `tasks/backlog/chantier-2-deferred/cloud/TASKS.md` *(backend SaaS pur)*
+- `tasks/backlog/chantier-2-deferred/sentinel/TASKS.md`
+- `tasks/backlog/chantier-2-deferred/marketplace/TASKS.md`
+- `tasks/backlog/chantier-2-deferred/api/TASKS.md`
+- `tasks/backlog/chantier-2-deferred/dashboard-l2-l3/TASKS.md` *(pages Dashboard Niveau 2/3)*
 
-## Phase 6 — Marketplace
-
-- ⬜ MARKET-001 — Schéma `arc-template.yml` (zod) dans `arc-shared`
-- ⬜ MARKET-002 — Validation templates : scanner sécurité (Trivy + custom rules)
-- ⬜ MARKET-003 — Registry templates : GitHub Container Registry + index R2
-- ⬜ MARKET-004 — Page `/marketplace` Dashboard : liste + recherche + filtres
-- ⬜ MARKET-005 — Page détail template + bouton "Deploy on my VPS"
-- ⬜ MARKET-006 — Submit workflow templates communautaires (PR template)
-- ⬜ MARKET-007 — Stripe Connect : revenue share 70/30 templates premium
-- ⬜ MARKET-008 — 20 templates officiels EuglowLabs au lancement
-
----
-
-## Phase 7 — API publique & SDKs
-
-- ⬜ API-001 — Spec OpenAPI complète (orgs, projects, vps, metrics)
-- ⬜ API-002 — Génération doc API (Stoplight ou Scalar)
-- ⬜ API-003 — Rate limiting + API key auth
-- ⬜ API-004 — SDK TypeScript `@euglowlabs/arc-sdk` (codegen depuis OpenAPI)
-- ⬜ API-005 — SDK Python `pip install euglowlabs-arc`
-- ⬜ API-006 — SDK Go `github.com/euglowlabs/arc-go`
-- ⬜ API-007 — Webhooks sortants (project.deployed, service.crashed, ...)
-- ⬜ API-008 — Tutoriels d'intégration (3 use cases concrets)
-
----
-
-## Phase 8 — Polish & growth
-
-- ⬜ DOC-001 — Site doc Astro Starlight (`docs.arc.euglowlabs.com`)
-- ⬜ DOC-002 — Quickstart 15 min (de zéro à premier deploy)
-- ⬜ DOC-003 — Reference docs CLI (toutes les commandes)
-- ⬜ DOC-004 — Reference docs Dashboard (toutes les pages)
-- ⬜ DOC-005 — Guide migration Vercel → ARC
-- ⬜ OPS-001 — Audit sécurité externe ARC Agent (avant lancement payant)
-- ⬜ OPS-002 — Bug bounty program setup (HackerOne ou similaire)
-- ⬜ OPS-003 — Dogfood : héberger EuglowLabs.com sur ARC self-hosted
-- ⬜ OPS-004 — Migration ARC Cloud Vercel → ARC self-hosted (case study)
+**Ne pas démarrer ces tâches sans `"go chantier 2"` de l'utilisateur.**

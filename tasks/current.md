@@ -1,41 +1,31 @@
-# Aucune tâche active — Phase 1 CLI MVP terminée 🎉
+# Aucune tâche active — Phases 0 & 1 terminées 🎉
 
-## Phase 1 — bilan
-**28/28 ✅**, **30 PRs mergées sans rollback**, ~75 tests Vitest verts.
-
-Le CLI `arc` couvre désormais l'intégralité du parcours utilisateur :
-- `version` / `help` (banner ASCII)
-- `init` interactif → `arc.config.yml`
-- Schéma zod + loader + générateur YAML
-- 3 templates Compose (prod / sandbox / agents) + `.env`
-- Adapters Local + VPS + Mock + provisioning Hetzner
-- `deploy`, `status`, `logs`, `restart`
-- `backup`, `restore`, upload R2 (rclone)
-- `project add` / `list` / `deploy` (Coolify API)
-- `migrate` (local → VPS)
-- Cloudflared tunnel auto
-- Single binary cross-target via Bun
-- Workflow npm publish + Homebrew formula
-- `install.sh` curl-friendly
-- Telemetry opt-in (OFF par défaut)
+## Bilan
+- **Phase 0** : 10/10 ✅ (setup monorepo, tooling, CI, release workflow Changesets)
+- **Phase 1** : 28/28 ✅ (CLI MVP complet)
+- **PRs mergées** : 33
+- **Tests Vitest** : ~75
+- **Phase suivante** : Phase 2 (ARC Agent en Go)
 
 ## Pour démarrer une tâche
     /arc-task-start [TASK-ID]
 
 ## Prochaines tâches suggérées
 
-- **AGENT-001** → ouvrir Phase 2 (skeleton Go ARC Agent)
-- **DASH-001** → Phase 3 (Next.js dashboard)
-- **INFRA-008/009/010** → finir Phase 0 (Changesets, README, release workflow)
+- **AGENT-001** — Skeleton Go + Makefile + cross-compilation (ouvre Phase 2)
+- **DASH-001** — Bootstrap Next.js 15 App Router + Tailwind + shadcn/ui (ouvre Phase 3)
 
 ## État global du projet
-- Phase 0 : 7/10 (INFRA-008/009/010 restants, repoussables)
+- Phase 0 : **10/10 ✅**
 - Phase 1 : **28/28 ✅**
-- Phase 2 : 0/14
-- Phase 3 : 0/15
-- Phase 4 : 0/14
-- Phase 5 : 0/7
-- Phase 6 : 0/8
-- Phase 7 : 0/8
-- Phase 8 : 0/9
-- **Total : 35/113 tâches**
+- Phase 2 : 0/14 (ARC Agent Go)
+- Phase 3 : 0/15 (Dashboard niveau 1)
+- Phase 4 : 0/14 (ARC Cloud MVP)
+- Phase 5 : 0/7 (Sentinel AI)
+- Phase 6 : 0/8 (Marketplace)
+- Phase 7 : 0/8 (API publique + SDKs)
+- Phase 8 : 0/9 (Polish & growth)
+- **Total : 38/113 tâches mergées**
+
+## CLI `arc` à ce jour
+`version`, `help`, `init`, `deploy`, `status`, `logs`, `restart`, `backup`, `restore`, `project add|list|deploy`, `migrate`, `config telemetry`. Single binary via Bun, install.sh curl-friendly, Homebrew formula, workflow Changesets en place.
