@@ -6,16 +6,17 @@ import type { ExecChunk, ExecOpts, ExecResult, ExecutionAdapter } from "./types.
 
 /**
  * `ExecutionAdapter` that runs commands and manipulates files on the
- * operator's machine via `execa` and `node:fs/promises`.
+ * host machine — i.e. the very machine where the CLI is invoked, via
+ * `execa` and `node:fs/promises`.
  *
- * Selected when `target: local` in `arc.config.yml` (see ADR-0009).
+ * This is the only production adapter under the single-machine install
+ * model (ADR-0012). The `ExecutionAdapter` interface is kept so tests
+ * can swap in `MockAdapter` without touching the host shell.
  *
  * The single-string `cmd` passed to `exec()` is run through the
- * native shell so users can rely on pipes, redirections and globbing
- * the same way they would on a remote VPS — the goal of the adapter
- * is shape-equivalence, not minimal-shell purity.
+ * native shell so users can rely on pipes, redirections and globbing.
  */
-export class LocalAdapter implements ExecutionAdapter {
+export class HostAdapter implements ExecutionAdapter {
   async exec(cmd: string, opts: ExecOpts = {}): Promise<ExecResult> {
     const start = Date.now();
     const child = execa(cmd, {
@@ -67,6 +68,6 @@ export class LocalAdapter implements ExecutionAdapter {
   }
 
   describe(): string {
-    return "local";
+    return "host";
   }
 }

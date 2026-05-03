@@ -1,4 +1,4 @@
-export { LocalAdapter } from "./local.js";
+export { HostAdapter } from "./host.js";
 export { MockAdapter } from "./mock.js";
 export type {
   ExecChunk,

@@ -1,6 +1,6 @@
 import { Command, Option } from "clipanion";
 
-import { LocalAdapter } from "../exec/index.js";
+import { HostAdapter } from "../exec/index.js";
 import { addProject } from "../projects/add.js";
 import { CoolifyClient, type CoolifyClientOptions } from "../projects/coolify.js";
 
@@ -47,7 +47,7 @@ export class ProjectAddCommand extends Command {
       this.context.stderr.write(COOLIFY_OPTS_HELP);
       return 1;
     }
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     try {
       const result = await addProject(adapter, {
         name: this.name,

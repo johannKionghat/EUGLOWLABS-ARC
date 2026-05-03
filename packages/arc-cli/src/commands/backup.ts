@@ -1,7 +1,7 @@
 import { Command, Option } from "clipanion";
 
 import { runBackup } from "../backup/run.js";
-import { LocalAdapter } from "../exec/index.js";
+import { HostAdapter } from "../exec/index.js";
 
 /**
  * `arc backup` — snapshot Postgres + named volumes into ./backups.
@@ -30,7 +30,7 @@ export class BackupCommand extends Command {
   });
 
   override async execute(): Promise<number> {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const result = await runBackup(adapter, {
       outDir: this.outDir,
       postgresContainer: this.postgresContainer,

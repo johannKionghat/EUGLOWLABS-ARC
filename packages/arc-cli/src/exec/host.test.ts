@@ -4,16 +4,16 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { LocalAdapter } from "./local.js";
+import { HostAdapter } from "./host.js";
 import type { ExecChunk } from "./types.js";
 
 const isWindows = platform() === "win32";
 
-describe("LocalAdapter", () => {
+describe("HostAdapter", () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "arc-local-"));
+    dir = await mkdtemp(join(tmpdir(), "arc-host-"));
   });
 
   afterEach(async () => {
@@ -21,7 +21,7 @@ describe("LocalAdapter", () => {
   });
 
   it("runs a basic shell command and captures stdout", async () => {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const cmd = isWindows ? "echo hello-arc" : "printf hello-arc";
     const result = await adapter.exec(cmd);
     expect(result.exitCode).toBe(0);
@@ -30,14 +30,14 @@ describe("LocalAdapter", () => {
   });
 
   it("returns a non-zero exit code for a failing command", async () => {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const cmd = isWindows ? "exit 7" : "sh -c 'exit 7'";
     const result = await adapter.exec(cmd);
     expect(result.exitCode).toBe(7);
   });
 
   it("streams stdout chunks via onChunk", async () => {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const chunks: ExecChunk[] = [];
     const cmd = isWindows ? "echo line1" : "printf 'line1\\n'";
     await adapter.exec(cmd, { onChunk: (c) => chunks.push(c) });
@@ -46,7 +46,7 @@ describe("LocalAdapter", () => {
   });
 
   it("copyFile / readFile / fileExists round-trip", async () => {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const src = join(dir, "src.txt");
     const dest = join(dir, "dest.txt");
     await writeFile(src, "payload", "utf8");
@@ -59,7 +59,7 @@ describe("LocalAdapter", () => {
     expect(await adapter.readFile(dest)).toBe("payload");
   });
 
-  it("describe() returns 'local'", () => {
-    expect(new LocalAdapter().describe()).toBe("local");
+  it("describe() returns 'host'", () => {
+    expect(new HostAdapter().describe()).toBe("host");
   });
 });

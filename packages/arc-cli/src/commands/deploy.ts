@@ -6,15 +6,13 @@ import type { ArcConfig } from "@euglowlabs/arc-shared";
 
 import { loadArcConfig } from "../config/index.js";
 import { deploy } from "../deploy/deploy.js";
-import { LocalAdapter } from "../exec/index.js";
+import { HostAdapter } from "../exec/index.js";
 
 /**
- * `arc deploy` — render the project artifacts and apply them.
+ * `arc deploy` — render the project artifacts and apply them on the
+ * host machine via {@link HostAdapter}.
  *
- * For now: only `target: local` is fully wired (LocalAdapter). The
- * VPS path (lazy SSH connect via VPSAdapter) is exposed by the same
- * code path but provisioning + remote bootstrap come with CLI-013
- * (Ansible) and CLI-023 (full migrate). See ADR-0009.
+ * Single-machine install model — see ADR-0012.
  */
 export class DeployCommand extends Command {
   static override paths = [["deploy"]];
@@ -50,7 +48,7 @@ export class DeployCommand extends Command {
       return 1;
     }
 
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const out = resolve(this.outDir);
     const result = await deploy(cfg, adapter, {
       outDir: out,

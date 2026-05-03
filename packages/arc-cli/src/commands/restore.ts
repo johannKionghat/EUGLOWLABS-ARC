@@ -1,7 +1,7 @@
 import { Command, Option } from "clipanion";
 
 import { listBackups, restoreBackup } from "../backup/restore.js";
-import { LocalAdapter } from "../exec/index.js";
+import { HostAdapter } from "../exec/index.js";
 
 /**
  * `arc restore [<backup-id>]` — list available backups, or restore one.
@@ -36,7 +36,7 @@ export class RestoreCommand extends Command {
   });
 
   override async execute(): Promise<number> {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
 
     if (this.backupId === undefined) {
       const entries = await listBackups(adapter, { dir: this.dir });
