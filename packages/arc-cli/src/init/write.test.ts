@@ -9,7 +9,6 @@ import { writeArcConfig } from "./write.js";
 
 const sampleConfig = {
   project: "johann-stack",
-  target: "local" as const,
   domain: "mondomaine.dev",
   email: "johann@mondomaine.dev",
   dns: {
@@ -34,8 +33,8 @@ describe("writeArcConfig", () => {
     const path = join(dir, "arc.config.yml");
     await writeArcConfig(path, sampleConfig);
     const cfg = await loadArcConfig(path);
-    expect(cfg.target).toBe("local");
     expect(cfg.project).toBe("johann-stack");
+    expect(cfg.agent.bind).toBe("127.0.0.1");
   });
 
   it("refuses to overwrite an existing file without --force", async () => {

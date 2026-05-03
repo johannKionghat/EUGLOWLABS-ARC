@@ -3,34 +3,22 @@ import { describe, expect, it } from "vitest";
 
 import { generateProdCompose } from "./prod-compose.js";
 
-function configFor(target: "local" | "vps"): ArcConfig {
-  const base = {
+function sampleConfig(): ArcConfig {
+  return arcConfigSchema.parse({
     project: "johann-stack",
-    target,
     domain: "mondomaine.dev",
     email: "johann@mondomaine.dev",
     dns: {
-      provider: "cloudflare" as const,
+      provider: "cloudflare",
       zone: "mondomaine.dev",
       api_token: "cf-token-xyz",
     },
-    ...(target === "vps"
-      ? {
-          provider: {
-            name: "hetzner" as const,
-            plan: "cx32",
-            location: "fsn1",
-            ssh_key: "~/.ssh/id_ed25519.pub",
-          },
-        }
-      : {}),
-  };
-  return arcConfigSchema.parse(base);
+  });
 }
 
 describe("generateProdCompose", () => {
-  it("emits a prod_net network and an uptime-kuma service for a local config", () => {
-    const out = generateProdCompose(configFor("local"));
+  it("emits a prod_net network and an uptime-kuma service", () => {
+    const out = generateProdCompose(sampleConfig());
     expect(out).toContain("networks:");
     expect(out).toContain("prod_net:");
     expect(out).toContain("uptime-kuma:");
@@ -39,13 +27,13 @@ describe("generateProdCompose", () => {
   });
 
   it("injects the user domain into the Traefik host rule", () => {
-    const out = generateProdCompose(configFor("vps"));
+    const out = generateProdCompose(sampleConfig());
     expect(out).toContain("Host(`status.mondomaine.dev`)");
     expect(out).toContain("traefik.http.services.uptime-kuma.loadbalancer.server.port=3001");
   });
 
   it("contains no unresolved eta placeholders", () => {
-    const out = generateProdCompose(configFor("local"));
+    const out = generateProdCompose(sampleConfig());
     expect(out).not.toMatch(/<%[\s\S]*?%>/);
   });
 });

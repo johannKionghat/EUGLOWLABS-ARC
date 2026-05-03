@@ -6,7 +6,6 @@ import { generateAgentsCompose } from "./agents-compose.js";
 function sampleConfig(): ArcConfig {
   return arcConfigSchema.parse({
     project: "johann-stack",
-    target: "local",
     domain: "mondomaine.dev",
     email: "johann@mondomaine.dev",
     dns: {
