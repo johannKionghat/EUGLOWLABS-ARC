@@ -36,11 +36,12 @@ export interface DeployResult {
 /**
  * Render every project artifact and apply it through the adapter.
  *
- * Pure orchestration — the rendering is done locally (always),
+ * Pure orchestration — the rendering is done in a tmp staging dir,
  * then files are pushed onto the adapter's filesystem via
  * `copyFile`. Finally `docker compose up -d` is invoked through
- * `exec`, which the LocalAdapter runs on the host and the
- * VPSAdapter runs over SSH.
+ * `exec`. Under the single-machine install model (ADR-0012) the
+ * adapter is always {@link HostAdapter} in production; tests use
+ * {@link MockAdapter}.
  */
 export async function deploy(
   cfg: ArcConfig,

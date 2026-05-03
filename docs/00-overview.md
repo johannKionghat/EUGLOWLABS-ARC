@@ -2,64 +2,69 @@
 
 ## Vision (3 phrases)
 
-EuglowLabs ARC (Autonomous Resource Cloud) transforme n'importe quel VPS en plateforme self-hosted complète "Vercel + Supabase + Ollama" via une seule commande. Le produit fournit un cockpit unifié pour superviser, opérer et faire évoluer toute la stack (apps, BDD, IA, sandbox) avec un mode dual local/VPS identique. ARC s'appuie sur Coolify comme orchestrateur (jamais forké) et `local-ai-packaged` pour la stack IA, et ajoute la couche manquante : bootstrap automatisé, dashboard agrégé, multi-tenant et AI Copilot.
+EuglowLabs ARC (Autonomous Resource Cloud) transforme n'importe quel VPS — chez n'importe quel provider (OVH, Hetzner, Scaleway, AWS, Raspberry Pi…) — en plateforme self-hosted complète "Vercel + Supabase + Ollama" via une seule commande lancée **sur place** (ADR-0012). Le produit fournit un cockpit unifié pour superviser, opérer et faire évoluer toute la stack (apps, BDD, IA, sandbox) sans dépendance à un orchestrateur externe. ARC s'appuie sur Coolify (jamais forké) et `local-ai-packaged` pour la stack IA, et ajoute la couche manquante : bootstrap single-machine, dashboard self-hosted (Chantier 1) puis multi-tenant + AI Copilot (Chantier 2 — gelé).
 
-## Composants principaux
+## Composants principaux (Chantier 1)
 
 | Composant | Rôle | Stack |
 |---|---|---|
-| **CLI `arc`** | Bootstrap, deploy, backup, migrate, project mgmt | Bun + clipanion + zod |
-| **ARC Agent** | Service installé sur chaque VPS, expose state au Dashboard | Go + chi + gorilla/websocket |
-| **ARC Dashboard** | UI de supervision (self-host ou cloud) — niveaux 1, 2, 3 | Next.js 15 + shadcn/ui |
-| **ARC Cloud** | Backend SaaS multi-tenant (auth, billing, marketplace) | Next.js 15 + Drizzle + Clerk + Stripe |
-| **Sentinel** | AI Copilot intégré au Dashboard | LangGraph + Claude/GPT/Ollama |
-| **Marketplace** | Bibliothèque de templates one-click (apps, agents, workflows) | GHCR + R2 + custom CDN |
+| **CLI `arc`** | Install + ops sur la machine cible | Bun + clipanion + zod |
+| **ARC Agent** | Service local exposant l'état au Dashboard | Go + chi + gorilla/websocket |
+| **ARC Dashboard** | UI de supervision Niveau 1 self-hosted | Next.js 15 + shadcn/ui |
 
-## Schéma global (cible Niveau 3)
+## Composants Chantier 2 (gelés — voir [ADR-0013](03-architecture-decisions/0013-chantier-1-2-separation.md))
+
+| Composant | Rôle |
+|---|---|
+| **ARC Cloud** | Backend SaaS multi-tenant (auth, billing, marketplace) |
+| **Sentinel** | AI Copilot intégré au Dashboard |
+| **Marketplace** | Bibliothèque de templates one-click |
+| **API publique + SDKs** | REST/WS + clients TS/Python/Go + plugins |
+| **Pages Dashboard Niveau 2/3** | `/topology`, `/business`, `/sandbox`, `/compliance`, `/cross-env`, `/billing`, `/team`, etc. |
+
+## Schéma global (cible Chantier 1)
 
 ```
-                 ┌──────────────────────────────┐
-                 │   ARC Cloud (multi-tenant)   │
-                 │   arc.euglowlabs.com         │
-                 │   Auth + Stripe + Marketplace│
-                 └──────────────┬───────────────┘
-                                │ API publique REST/WS
-                                ▼
-   ┌────────────────────────────────────────────────────────┐
-   │              ARC Dashboard (Next.js 15)                 │
-   │  Self-hosted ou cloud — niveaux 1, 2, 3                 │
-   └────────────────────────────────────────────────────────┘
-                                │ read-only API + WebSocket
-                                ▼
-   ┌────────────────────────────────────────────────────────┐
-   │              ARC Agent (sur chaque VPS managé)          │
-   │  Go binary léger, port 9999, token signé                │
-   └────────────────────────────────────────────────────────┘
-                                │
-       ┌──────────┬──────────┬──────────┬──────────┐
-       │ Coolify  │ Ollama   │ Langfuse │ Postgres │
-       └──────────┴──────────┴──────────┴──────────┘
-       prod_net (vert) │ ai_net (bleu) │ sandbox_net (rouge, internal:true)
+   ┌──────────────────────────────────────────────────────────┐
+   │  Machine cible (VPS quelconque, RPi, WSL2…)              │
+   │  L'utilisateur s'y connecte via SSH et lance arc setup   │
+   ├──────────────────────────────────────────────────────────┤
+   │  ARC Dashboard (Next.js 15) sur dashboard.<domain>       │
+   │  ▲                                                        │
+   │  │ HTTP + WebSocket (token local statique)                │
+   │  ▼                                                        │
+   │  ARC Agent (Go) — bind 127.0.0.1:9999 par défaut          │
+   │  ▲                                                        │
+   │  │ Docker socket / Coolify API / Ollama API               │
+   │  ▼                                                        │
+   │  ┌──────────┬──────────┬──────────┬──────────┐            │
+   │  │ Coolify  │ Ollama   │ Langfuse │ Postgres │            │
+   │  └──────────┴──────────┴──────────┴──────────┘            │
+   │  prod_net (vert) │ ai_net (bleu) │ sandbox_net (rouge,    │
+   │                                    internal:true)         │
+   └──────────────────────────────────────────────────────────┘
 ```
 
 ## Spécifications détaillées
 
-- Spec infra : [`01-spec-infra.md`](./01-spec-infra.md)
+- Spec infra : [`01-spec-infra.md`](./01-spec-infra.md) — *bandeau §6 partiellement superseded par ADR-0012*
 - Spec produit : [`02-spec-arc-product.md`](./02-spec-arc-product.md)
 - ADRs : [`03-architecture-decisions/`](./03-architecture-decisions/)
 - Conventions : [`04-conventions/`](./04-conventions/)
 - Glossaire : [`05-glossary.md`](./05-glossary.md)
 
-## Roadmap (8 phases)
+## Roadmap
 
-Cf. `02-spec-arc-product.md` §14 et `tasks/INDEX.md`.
+Voir `tasks/INDEX.md`. Le projet est strictement séquencé en deux **chantiers** ([ADR-0013](03-architecture-decisions/0013-chantier-1-2-separation.md)) :
 
-- **Phase 0** — Setup monorepo & tooling (semaine 1)
-- **Phase 1** — CLI MVP (semaines 2-4)
-- **Phase 2** — ARC Agent (semaines 5-6)
-- **Phase 3** — Dashboard Niveau 1 — status page (semaines 7-9)
-- **Phase 4** — ARC Cloud MVP — multi-tenant + billing (semaines 10-13)
-- **Phase 5** — Sentinel AI Copilot
-- **Phase 6** — Marketplace
-- **Phase 7** — API publique & SDKs
-- **Phase 8** — Polish & growth (continu)
+### Chantier 1 — actif
+- **Phase 0** — Setup monorepo & tooling ✅
+- **Phase 1** — CLI MVP ✅
+- **Phase 1.5** — Refactor ADR-0012 (single-machine) 🟡
+- **Phase 2** — ARC Agent (Go) — auth = token local statique
+- **Phase 3** — Dashboard Niveau 1 self-hosted
+- **Phase 4** — Validation infra à vide (VALIDATE-001 à 007)
+
+### Chantier 2 — gelé jusqu'à `"go chantier 2"`
+ARC Cloud, Sentinel, Marketplace, API+SDKs+Plugins, pages Dashboard Niveau 2/3.
+Voir `tasks/backlog/chantier-2-deferred/`.

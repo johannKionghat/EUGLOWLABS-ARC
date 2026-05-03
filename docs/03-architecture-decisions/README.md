@@ -56,5 +56,8 @@ Pourquoi pas X, Y, Z.
 - [ADR-0006 — Apache 2.0 pour les composants OSS](./0006-apache-2-license-oss.md)
 - [ADR-0007 — Postgres partagé via Supabase](./0007-postgres-shared-via-supabase.md)
 - [ADR-0008 — Trois réseaux Docker isolés](./0008-three-network-isolation.md)
-- [ADR-0009 — Dual target local/VPS](./0009-dual-target-local-vps.md)
+- ⛔ [ADR-0009 — Dual target local/VPS](./0009-dual-target-local-vps.md) *(superseded by ADR-0012)*
 - [ADR-0010 — Clerk + Stripe + Supabase pour ARC Cloud](./0010-clerk-stripe-supabase-cloud.md)
+- [ADR-0011 — Critères d'acceptation end-to-end (28 critères)](./0011-end-to-end-install-acceptance.md)
+- [ADR-0012 — Single-machine install model](./0012-single-machine-install.md)
+- [ADR-0013 — Strict Chantier 1 / Chantier 2 separation](./0013-chantier-1-2-separation.md)

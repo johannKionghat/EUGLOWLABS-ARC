@@ -3,7 +3,6 @@ import { z } from "zod";
 import { backupsSchema } from "./backups.js";
 import { dnsSchema } from "./dns.js";
 import { projectEntrySchema } from "./project.js";
-import { providerSchema } from "./provider.js";
 import { servicesSchema } from "./services.js";
 import { stackSchema } from "./stack.js";
 
@@ -14,24 +13,31 @@ const DOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-
  * Root schema for `arc.config.yml`.
  *
  * Single source of truth for the user-facing configuration that drives
- * the `arc` CLI (`init`, `deploy`, `status`, `backup`, `migrate`, ...).
- * Consumed by ARC Agent and ARC Cloud as well — that's why it lives in
+ * the `arc` CLI (`init`, `setup`, `deploy`, `status`, `backup`, ...).
+ * Consumed by ARC Agent (Phase 2) as well — that's why it lives in
  * `@euglowlabs/arc-shared` (see ADR-0001).
  *
- * See spec-infra §5.5 and ADR-0009 (dual target local/VPS).
+ * See spec-infra §5.5 and ADR-0012 (single-machine install model).
  *
  * Boundary type: keys mirror the YAML config 1:1 (snake_case). The schema
  * is `.strict()` to surface typos in the user's config rather than
  * silently dropping unknown keys.
+ *
+ * `agent: { bind, port }` is the binding configuration for the ARC
+ * Agent (Phase 2) — included now to avoid re-breaking the schema later.
  */
 export const arcConfigSchema = z
   .strictObject({
     project: z.string().regex(SLUG_REGEX, "project must be a lowercase slug"),
-    target: z.enum(["local", "vps"]),
     domain: z.string().regex(DOMAIN_REGEX, "domain must be a valid hostname"),
     email: z.email("email must be a valid email address"),
-    provider: providerSchema.optional(),
     dns: dnsSchema,
+    agent: z
+      .object({
+        bind: z.string().default("127.0.0.1"),
+        port: z.number().int().positive().max(65535).default(9999),
+      })
+      .default({ bind: "127.0.0.1", port: 9999 }),
     stack: stackSchema.default({
       paas: "coolify",
       ai_stack: true,
@@ -47,14 +53,6 @@ export const arcConfigSchema = z
     projects: z.array(projectEntrySchema).default([]),
   })
   .superRefine((cfg, ctx) => {
-    if (cfg.target === "vps" && !cfg.provider) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["provider"],
-        message: 'provider is required when target is "vps"',
-      });
-    }
-
     const seenSubdomains = new Set<string>();
     for (let i = 0; i < cfg.projects.length; i += 1) {
       const sub = cfg.projects[i]?.subdomain;

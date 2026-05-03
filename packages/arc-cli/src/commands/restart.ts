@@ -1,6 +1,6 @@
 import { Command, Option } from "clipanion";
 
-import { LocalAdapter } from "../exec/index.js";
+import { HostAdapter } from "../exec/index.js";
 
 /**
  * `arc restart <service>` — restart a single docker container.
@@ -16,7 +16,7 @@ export class RestartCommand extends Command {
   service = Option.String();
 
   override async execute(): Promise<number> {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const result = await adapter.exec(`docker restart ${this.service}`, {
       onChunk: (chunk) => this.context.stdout.write(chunk.data),
     });

@@ -1,41 +1,23 @@
-# Aucune tâche active — Phase 1 CLI MVP terminée 🎉
+# Aucune tâche active — Phase 1.5 en cours
 
-## Phase 1 — bilan
-**28/28 ✅**, **30 PRs mergées sans rollback**, ~75 tests Vitest verts.
-
-Le CLI `arc` couvre désormais l'intégralité du parcours utilisateur :
-- `version` / `help` (banner ASCII)
-- `init` interactif → `arc.config.yml`
-- Schéma zod + loader + générateur YAML
-- 3 templates Compose (prod / sandbox / agents) + `.env`
-- Adapters Local + VPS + Mock + provisioning Hetzner
-- `deploy`, `status`, `logs`, `restart`
-- `backup`, `restore`, upload R2 (rclone)
-- `project add` / `list` / `deploy` (Coolify API)
-- `migrate` (local → VPS)
-- Cloudflared tunnel auto
-- Single binary cross-target via Bun
-- Workflow npm publish + Homebrew formula
-- `install.sh` curl-friendly
-- Telemetry opt-in (OFF par défaut)
+## État global du Chantier 1
+- **Phase 0** : 10/10 ✅
+- **Phase 1** : 28/28 ✅ *(modèle dual ADR-0009 — refactoré en Phase 1.5)*
+- **Phase 1.5** : 3/8 ✅ — REFACTOR-001/002/003 terminés (single-machine ADR-0012). Restant : DOC-001, INSTALL-001, ANSIBLE-001, DNS-001, E2E-001
+- **Phase 2** : 0/14 (ARC Agent Go, auth = token local statique)
+- **Phase 3** : 0/15 (Dashboard Niveau 1 self-hosted)
+- **Phase 4** : 0/7 (VALIDATE-001 à 007 — validation infra à vide)
 
 ## Pour démarrer une tâche
     /arc-task-start [TASK-ID]
 
-## Prochaines tâches suggérées
+## Prochaine tâche suggérée
 
-- **AGENT-001** → ouvrir Phase 2 (skeleton Go ARC Agent)
-- **DASH-001** → Phase 3 (Next.js dashboard)
-- **INFRA-008/009/010** → finir Phase 0 (Changesets, README, release workflow)
+**DOC-001** — `docs/migration-guide.md` (livrable critique — seul artefact de migration côté produit). Mitigation obligatoire de P2 + P3 d'ADR-0012, pré-requis de la validation Chantier 1. Couvre 6 sections (3 cas de migration, déplacement instance, staging, install sans IP publique, rollback, troubleshooting).
 
-## État global du projet
-- Phase 0 : 7/10 (INFRA-008/009/010 restants, repoussables)
-- Phase 1 : **28/28 ✅**
-- Phase 2 : 0/14
-- Phase 3 : 0/15
-- Phase 4 : 0/14
-- Phase 5 : 0/7
-- Phase 6 : 0/8
-- Phase 7 : 0/8
-- Phase 8 : 0/9
-- **Total : 35/113 tâches**
+Alternatives si DOC-001 attend du contenu produit :
+- **INSTALL-001** — Commande `arc setup` all-in-one
+- **ANSIBLE-001** — Rôles Ansible exécutés en `localhost`
+
+## CLI `arc` à ce jour (post-refactor ADR-0012)
+`version`, `help`, `init`, `deploy`, `status`, `logs`, `restart`, `backup`, `restore`, `project add|list|deploy`, `config telemetry`. Single binary via Bun, install.sh curl-friendly, Homebrew formula, workflow Changesets en place. **`arc migrate` retiré** (single-machine — ADR-0012). **`arc setup` à venir** (INSTALL-001).

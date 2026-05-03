@@ -44,27 +44,21 @@ export interface ExecResult {
 /**
  * Abstraction over "where" the CLI runs commands and copies files.
  *
- * `LocalAdapter` (CLI-010) talks to the operator's machine via execa
- * and `node:fs`. `VPSAdapter` (CLI-011) talks to a remote VPS via
- * `node-ssh` and SFTP. Higher-level commands (`arc deploy`,
- * `arc status`, `arc backup`, ...) consume only this interface so the
- * `target: local | vps` switch in `arc.config.yml` flips a single
- * implementation, with the rest of the logic shared across both.
- *
- * See ADR-0009 for the rationale.
+ * Under the single-machine install model (ADR-0012) the only
+ * production implementation is {@link HostAdapter} (execa +
+ * `node:fs`). The interface is kept so tests can swap in
+ * {@link MockAdapter} without touching the host shell.
  */
 export interface ExecutionAdapter {
   /**
-   * Execute a shell command and return its output.
-   * The command runs through the adapter's native shell on the
-   * target side (local sh/cmd or remote ssh shell).
+   * Execute a shell command and return its output. Runs through the
+   * native shell on the host machine.
    */
   exec(cmd: string, opts?: ExecOpts): Promise<ExecResult>;
 
   /**
-   * Copy a file from the operator's machine to the adapter's
-   * filesystem. On `LocalAdapter` this is a regular `fs.copyFile`;
-   * on `VPSAdapter` it is an SFTP upload.
+   * Copy a file on the host filesystem (semantically identical to
+   * `fs.copyFile`).
    */
   copyFile(srcLocalPath: string, destPath: string): Promise<void>;
 
@@ -76,7 +70,7 @@ export interface ExecutionAdapter {
 
   /**
    * Free-form label for logs and error messages.
-   * Conventional values: `"local"`, `"vps:<ip>"`, `"mock"`.
+   * Conventional values: `"host"`, `"mock"`.
    */
   describe(): string;
 }

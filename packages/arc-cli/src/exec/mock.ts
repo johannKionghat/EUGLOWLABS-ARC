@@ -21,9 +21,9 @@ const DEFAULT_RESULT: ExecResult = {
  * and `seedFile` populate the virtual filesystem so `readFile` and
  * `fileExists` behave as expected.
  *
- * Real-world implementations live in CLI-010 (`LocalAdapter`) and
- * CLI-011 (`VPSAdapter`). This mock exists so consumers (CLI-012+)
- * can be unit-tested without touching the host shell or SSH.
+ * Real-world commands run through {@link HostAdapter}. This mock
+ * exists so consumers (`arc deploy`, `arc status`, `arc backup`, ...)
+ * can be unit-tested without touching the host shell.
  */
 export class MockAdapter implements ExecutionAdapter {
   readonly calls: MockCall[] = [];

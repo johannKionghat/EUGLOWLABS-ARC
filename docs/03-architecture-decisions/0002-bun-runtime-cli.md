@@ -8,10 +8,10 @@ Date : 2026-05-01
 Le CLI `arc` est le point d'entrée du produit. Il doit :
 - Démarrer rapidement (UX `arc status` < 200ms perçu)
 - Se distribuer en **single binary** sur Linux / macOS / Windows (curl install, Homebrew, npm)
-- Manipuler des SDKs JS/TS (Hetzner, Cloudflare, node-ssh)
+- Manipuler des SDKs JS/TS (Cloudflare DNS notamment)
 - Valider des configs avec zod
 - Templater des fichiers (eta)
-- Streamer stdout/stderr d'Ansible et de SSH distant
+- Streamer stdout/stderr d'Ansible exécuté localement (single-machine — ADR-0012)
 
 La spec infra v2.0 §5.3 mentionne explicitement Bun ou Node, et la spec produit §11.1 acte Bun.
 
@@ -24,9 +24,8 @@ Stack figée pour le CLI :
 - Prompts : `@clack/prompts`
 - Validation : `zod`
 - Templating : `eta`
-- SSH : `node-ssh` (compat Bun)
-- Hetzner : `hetzner-cloud-js`
-- Cloudflare : SDK officiel
+- Exécution locale : `execa`
+- Cloudflare DNS : SDK officiel (Phase 1.5+)
 
 ## Conséquences
 + Single binary distribué sans dépendance Node installée chez l'utilisateur
@@ -38,5 +37,5 @@ Stack figée pour le CLI :
 
 ## Alternatives rejetées
 - **Node + `pkg`** — `pkg` n'est plus maintenu activement (archivé par Vercel) ; alternative `@yao-pkg/pkg` existe mais marginal
-- **Deno** — meilleur runtime à plusieurs égards, mais compatibilité npm encore inférieure à Bun en 2026, et SDK Hetzner non testé sur Deno
+- **Deno** — meilleur runtime à plusieurs égards, mais compatibilité npm encore inférieure à Bun en 2026
 - **Node + `nexe` ou `boxednode`** — moins propre que `bun build --compile`, build plus lent

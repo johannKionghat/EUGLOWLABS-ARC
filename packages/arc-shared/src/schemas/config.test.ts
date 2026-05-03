@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { arcConfigSchema } from "./config.js";
 
-const minimalLocal = {
+const minimal = {
   project: "johann-stack",
-  target: "local",
   domain: "mondomaine.dev",
   email: "johann@mondomaine.dev",
   dns: {
@@ -14,21 +13,9 @@ const minimalLocal = {
   },
 };
 
-const fullVps = {
-  ...minimalLocal,
-  target: "vps",
-  provider: {
-    name: "hetzner",
-    plan: "cx32",
-    location: "fsn1",
-    ssh_key: "~/.ssh/id_ed25519.pub",
-  },
-  dns: {
-    provider: "cloudflare",
-    zone: "mondomaine.dev",
-    api_token: "cf-token",
-    tunnel: false,
-  },
+const fullExplicit = {
+  ...minimal,
+  agent: { bind: "0.0.0.0", port: 9000 },
   stack: {
     paas: "coolify",
     ai_stack: true,
@@ -56,22 +43,11 @@ const fullVps = {
 };
 
 describe("arcConfigSchema", () => {
-  it("accepts a minimal local config without provider", () => {
-    const parsed = arcConfigSchema.parse(minimalLocal);
-    expect(parsed.target).toBe("local");
-    expect(parsed.provider).toBeUndefined();
-  });
-
-  it("accepts a full vps config with all sections", () => {
-    const parsed = arcConfigSchema.parse(fullVps);
-    expect(parsed.target).toBe("vps");
-    expect(parsed.provider?.plan).toBe("cx32");
-    expect(parsed.projects).toHaveLength(2);
-  });
-
-  it("applies defaults for paas, tunnel, branch and stack flags", () => {
-    const parsed = arcConfigSchema.parse(minimalLocal);
-    expect(parsed.dns.tunnel).toBe(false);
+  it("accepts a minimal config and applies all defaults", () => {
+    const parsed = arcConfigSchema.parse(minimal);
+    expect(parsed.project).toBe("johann-stack");
+    expect(parsed.agent.bind).toBe("127.0.0.1");
+    expect(parsed.agent.port).toBe(9999);
     expect(parsed.stack.paas).toBe("coolify");
     expect(parsed.stack.ai_stack).toBe(true);
     expect(parsed.backups.schedule).toBe("0 2 * * *");
@@ -79,9 +55,18 @@ describe("arcConfigSchema", () => {
     expect(parsed.projects).toEqual([]);
   });
 
+  it("accepts a fully explicit config with all sections", () => {
+    const parsed = arcConfigSchema.parse(fullExplicit);
+    expect(parsed.agent.bind).toBe("0.0.0.0");
+    expect(parsed.agent.port).toBe(9000);
+    expect(parsed.backups.remote?.bucket).toBe("mondomaine-backups");
+    expect(parsed.services.ollama.models).toContain("mistral:7b");
+    expect(parsed.projects).toHaveLength(2);
+  });
+
   it("rejects an invalid email", () => {
     const result = arcConfigSchema.safeParse({
-      ...minimalLocal,
+      ...minimal,
       email: "not-an-email",
     });
     expect(result.success).toBe(false);
@@ -90,23 +75,20 @@ describe("arcConfigSchema", () => {
     }
   });
 
-  it("rejects an unknown target value", () => {
-    const result = arcConfigSchema.safeParse({ ...minimalLocal, target: "azure" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects target=vps without provider", () => {
-    const result = arcConfigSchema.safeParse({ ...minimalLocal, target: "vps" });
+  it("rejects an invalid project slug", () => {
+    const result = arcConfigSchema.safeParse({
+      ...minimal,
+      project: "BadName",
+    });
     expect(result.success).toBe(false);
     if (!result.success) {
-      const onProvider = result.error.issues.some((issue) => issue.path[0] === "provider");
-      expect(onProvider).toBe(true);
+      expect(result.error.issues.some((issue) => issue.path[0] === "project")).toBe(true);
     }
   });
 
   it("rejects duplicate project subdomains", () => {
     const result = arcConfigSchema.safeParse({
-      ...minimalLocal,
+      ...minimal,
       projects: [
         { name: "euglow", repo: "r1", subdomain: "app" },
         { name: "infinixui", repo: "r2", subdomain: "app" },
@@ -121,8 +103,16 @@ describe("arcConfigSchema", () => {
 
   it("rejects unknown top-level keys (strict)", () => {
     const result = arcConfigSchema.safeParse({
-      ...minimalLocal,
+      ...minimal,
       unknownField: "boom",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an out-of-range agent.port", () => {
+    const result = arcConfigSchema.safeParse({
+      ...minimal,
+      agent: { bind: "127.0.0.1", port: 70000 },
     });
     expect(result.success).toBe(false);
   });

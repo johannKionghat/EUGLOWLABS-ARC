@@ -1,6 +1,6 @@
 import { Command, Option } from "clipanion";
 
-import { LocalAdapter } from "../exec/index.js";
+import { HostAdapter } from "../exec/index.js";
 import { tailLogs } from "../logs/tail.js";
 
 /**
@@ -28,7 +28,7 @@ export class LogsCommand extends Command {
   });
 
   override async execute(): Promise<number> {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const tail = Number.parseInt(this.tail, 10);
     if (!Number.isFinite(tail) || tail < 0) {
       this.context.stderr.write("--tail must be a non-negative integer\n");

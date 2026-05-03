@@ -6,7 +6,6 @@ import { generateSandboxCompose } from "./sandbox-compose.js";
 function sampleConfig(): ArcConfig {
   return arcConfigSchema.parse({
     project: "johann-stack",
-    target: "local",
     domain: "mondomaine.dev",
     email: "johann@mondomaine.dev",
     dns: {

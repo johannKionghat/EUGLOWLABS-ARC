@@ -1,8 +1,10 @@
 # ADR-0009 : Mode dual `target: local | vps` avec pattern adapter
 
 ## Statut
-Accepté
-Date : 2026-05-01
+**⛔ Superseded by [ADR-0012](./0012-single-machine-install.md) — 2026-05-03**
+Initialement Accepté — 2026-05-01
+
+> Le contenu ci-dessous est conservé comme référence historique. Le modèle dual `target: local | vps` n'est plus celui de ARC. Le modèle actif est documenté dans **ADR-0012 — Single-machine install model**.
 
 ## Contexte
 Un solo founder doit pouvoir développer en local (WSL2 sur Windows, macOS, Linux) avec une expérience identique à la prod sur VPS. La spec infra §6 acte ce besoin : **"mêmes URLs, mêmes commandes, mêmes composes"** quel que soit le mode.

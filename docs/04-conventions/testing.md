@@ -56,13 +56,14 @@ pnpm test --coverage
 
 ## Tests d'intégration ARC Agent
 
-Tests E2E sur **VPS de staging** déclenchés en CI avant merge sur `main` pour les changements touchant l'Agent ou le déploiement :
+Tests E2E sur **machine de staging** déclenchés en CI avant merge sur `main` pour les changements touchant l'Agent ou le déploiement (single-machine install — ADR-0012) :
 
-1. Provision d'un VPS éphémère via API Hetzner
-2. `arc deploy --target=vps` complet
-3. Suite Playwright contre le Dashboard live
-4. Vérification de l'isolation sandbox (test : ping internet depuis sandbox_net doit échouer — cf. ADR-0008)
-5. Téardown du VPS
+1. Provision d'un VPS éphémère (Hetzner CLI manuel ou GitHub Actions runner self-hosted)
+2. SSH sur la machine, `arc setup` complet sur place
+3. `arc deploy` sur la stack
+4. Suite Playwright contre le Dashboard live
+5. Vérification de l'isolation sandbox (test : ping internet depuis sandbox_net doit échouer — cf. ADR-0008)
+6. Téardown de la machine
 
 Coût : ~0,02 € par run (CX22 facturé à l'heure).
 

@@ -1,6 +1,6 @@
 import { Command } from "clipanion";
 
-import { LocalAdapter } from "../exec/index.js";
+import { HostAdapter } from "../exec/index.js";
 import { checkStatus } from "../status/check.js";
 
 /**
@@ -15,7 +15,7 @@ export class StatusCommand extends Command {
   });
 
   override async execute(): Promise<number> {
-    const adapter = new LocalAdapter();
+    const adapter = new HostAdapter();
     const report = await checkStatus(adapter);
     this.context.stdout.write(`adapter: ${report.adapter}\n`);
     if (report.services.length === 0) {
