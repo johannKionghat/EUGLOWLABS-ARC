@@ -50,13 +50,6 @@ export class DeployCommand extends Command {
       return 1;
     }
 
-    if (cfg.target !== "local") {
-      this.context.stderr.write(
-        `target=${cfg.target} requires VPSAdapter wiring (CLI-013/CLI-023). Use target: local for now.\n`,
-      );
-      return 1;
-    }
-
     const adapter = new LocalAdapter();
     const out = resolve(this.outDir);
     const result = await deploy(cfg, adapter, {
