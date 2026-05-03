@@ -11,31 +11,33 @@
 - 2026-05-03 : INDEX restructuré (Chantier 1/2 séparés). CHANTIER-1-VALIDATION.md créé.
 - 2026-05-03 : Commit Phase B `[REFACTOR-000]` sur branche `refactor/adr-0012-single-machine`.
 
-## Phase C — Suppression chirurgicale 🟡
+## Phase C — Suppression chirurgicale ✅
 > Règle d'or : on supprime AVANT de refactorer.
 
-### C.2 — Commits prévus (suppressions atomiques)
+### Commits Phase C
 
-- [ ] **C.2.1** — Suppression `arc migrate` (commande + orchestrateur + tests + import dans cli.ts)
-- [ ] **C.2.2** — Suppression `VPSAdapter` + `provisionHetzner` (vps.ts/test, provision.ts, exports cassés dans exec/index.ts)
-- [ ] **C.2.3** — Suppression `cloudflared` CLI helper (tunnel/cloudflared.ts/test)
-- [ ] **C.2.4** — Suppression `providerSchema` + champs `target`/`provider` du config schéma + `tunnel` du dns schéma
-- [ ] **C.2.5** — Suppression fixture `valid-vps.yml`
-- [ ] **C.2.6** — `pnpm remove node-ssh`
+- ✅ `0c25e7e` — `refactor(cli): remove arc migrate command and orchestrator [REFACTOR-001]` (commands/migrate.ts, migrate/migrate.{ts,test.ts}, register dans cli.ts)
+- ✅ `8efa1d8` — `refactor(cli): remove VPSAdapter and Hetzner provisioning [REFACTOR-001]` (vps.{ts,test.ts}, provision.ts, exec/index.ts exports, `pnpm remove node-ssh`)
+- ✅ `1c97f56` — `refactor(cli): remove cloudflared tunnel CLI helper [REFACTOR-001]` (tunnel/cloudflared.{ts,test.ts})
+- ✅ `caf10fe` — `refactor(shared): drop target/provider/tunnel from config schema [REFACTOR-001]` (provider.ts, schemas/index, config.ts +`agent: { bind, port }`, dns.ts -`tunnel`, prompts.ts simplifié, deploy.ts gating retiré)
+- ✅ `cc21aec` — `refactor(cli): remove valid-vps fixture [REFACTOR-001]`
+- ✅ `a0e16f3` — `chore: biome format package.json after node-ssh removal [REFACTOR-001]`
 
-### C.3 — Stade requis fin Phase C
-- [ ] `pnpm typecheck` passe
-- [ ] `pnpm build` passe
-- [ ] Tests cassés acceptés (Phase D les corrigera)
+### Stade requis fin Phase C
+
+- ✅ `pnpm typecheck` passe (5 tasks success)
+- ✅ `pnpm build` passe (4 tasks success)
+- ✅ `pnpm lint` passe (92 fichiers, 0 erreur)
+- ⚠️ `pnpm test` casse intentionnellement (5+ tests `arc-shared/config.test.ts`, plus `arc-cli/config/load.test.ts`, `arc-cli/templates/prod-compose.test.ts`, `arc-cli/init/serialize.test.ts` qui référencent target/provider/tunnel ou fixture valid-vps.yml). **Phase D les corrigera.**
 
 ## Phase D — Refactor + audit zéro résidu (à venir)
 
-## Métriques
+### Métriques Phase C
 
-| Métrique | Cible | Actuel |
+| Métrique | Cible Phase A | Réel fin Phase C |
 |---|---|---|
-| Fichiers source supprimés | 10 | 0 |
-| Fichiers refactorés | ~16 | 0 |
-| LoC éliminées | ~700 | 0 |
-| Tests Vitest supprimés | 5 | 0 |
-| Dépendances retirées | 1 (`node-ssh`) | 0 |
+| Fichiers source supprimés | 10 | **10** (vps.ts/test, provision.ts, migrate/{ts,test,command}, cloudflared.ts/test, valid-vps.yml, provider.ts) |
+| LoC éliminées | ~700 | ~715 (estimation `git diff main...HEAD --stat`) |
+| Tests Vitest supprimés | 5 | **5** (vps.test ×2, migrate.test ×1, cloudflared.test ×2) |
+| Dépendances retirées | 1 | **1** (`node-ssh`) |
+| Modifs minimales pour typecheck | n/a | 4 fichiers (cli.ts, exec/index.ts, schemas/index.ts, config.ts, dns.ts, prompts.ts, deploy.ts) |
