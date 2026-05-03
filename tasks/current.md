@@ -1,31 +1,23 @@
-# Aucune tâche active — Phases 0 & 1 terminées 🎉
+# Aucune tâche active — Phase 1.5 en cours
 
-## Bilan
-- **Phase 0** : 10/10 ✅ (setup monorepo, tooling, CI, release workflow Changesets)
-- **Phase 1** : 28/28 ✅ (CLI MVP complet)
-- **PRs mergées** : 33
-- **Tests Vitest** : ~75
-- **Phase suivante** : Phase 2 (ARC Agent en Go)
+## État global du Chantier 1
+- **Phase 0** : 10/10 ✅
+- **Phase 1** : 28/28 ✅ *(modèle dual ADR-0009 — refactoré en Phase 1.5)*
+- **Phase 1.5** : 3/8 ✅ — REFACTOR-001/002/003 terminés (single-machine ADR-0012). Restant : DOC-001, INSTALL-001, ANSIBLE-001, DNS-001, E2E-001
+- **Phase 2** : 0/14 (ARC Agent Go, auth = token local statique)
+- **Phase 3** : 0/15 (Dashboard Niveau 1 self-hosted)
+- **Phase 4** : 0/7 (VALIDATE-001 à 007 — validation infra à vide)
 
 ## Pour démarrer une tâche
     /arc-task-start [TASK-ID]
 
-## Prochaines tâches suggérées
+## Prochaine tâche suggérée
 
-- **AGENT-001** — Skeleton Go + Makefile + cross-compilation (ouvre Phase 2)
-- **DASH-001** — Bootstrap Next.js 15 App Router + Tailwind + shadcn/ui (ouvre Phase 3)
+**DOC-001** — `docs/migration-guide.md` (livrable critique — seul artefact de migration côté produit). Mitigation obligatoire de P2 + P3 d'ADR-0012, pré-requis de la validation Chantier 1. Couvre 6 sections (3 cas de migration, déplacement instance, staging, install sans IP publique, rollback, troubleshooting).
 
-## État global du projet
-- Phase 0 : **10/10 ✅**
-- Phase 1 : **28/28 ✅**
-- Phase 2 : 0/14 (ARC Agent Go)
-- Phase 3 : 0/15 (Dashboard niveau 1)
-- Phase 4 : 0/14 (ARC Cloud MVP)
-- Phase 5 : 0/7 (Sentinel AI)
-- Phase 6 : 0/8 (Marketplace)
-- Phase 7 : 0/8 (API publique + SDKs)
-- Phase 8 : 0/9 (Polish & growth)
-- **Total : 38/113 tâches mergées**
+Alternatives si DOC-001 attend du contenu produit :
+- **INSTALL-001** — Commande `arc setup` all-in-one
+- **ANSIBLE-001** — Rôles Ansible exécutés en `localhost`
 
-## CLI `arc` à ce jour
-`version`, `help`, `init`, `deploy`, `status`, `logs`, `restart`, `backup`, `restore`, `project add|list|deploy`, `migrate`, `config telemetry`. Single binary via Bun, install.sh curl-friendly, Homebrew formula, workflow Changesets en place.
+## CLI `arc` à ce jour (post-refactor ADR-0012)
+`version`, `help`, `init`, `deploy`, `status`, `logs`, `restart`, `backup`, `restore`, `project add|list|deploy`, `config telemetry`. Single binary via Bun, install.sh curl-friendly, Homebrew formula, workflow Changesets en place. **`arc migrate` retiré** (single-machine — ADR-0012). **`arc setup` à venir** (INSTALL-001).

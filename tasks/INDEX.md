@@ -66,9 +66,9 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 > Supersede ADR-0009. Voir [ADR-0012](../docs/03-architecture-decisions/0012-single-machine-install.md) et [`docs/refactor-0012-inventory.md`](../docs/refactor-0012-inventory.md).
 
-- ⬜ REFACTOR-001 — Suppression chirurgicale code 🟥 (vps.ts, provision.ts, migrate, cloudflared, valid-vps.yml, schemas/provider.ts, dep `node-ssh`)
-- ⬜ REFACTOR-002 — Refactor 🟧 + renommage `LocalAdapter` → `HostAdapter`, schéma config sans `target`/`provider`/`tunnel`, ajout `agent: { bind, port }`
-- ⬜ REFACTOR-003 — Audit "zéro résidu" (4 greps vides) + rapport completion + déplacement archives concernées
+- ✅ REFACTOR-001 — Suppression chirurgicale code 🟥 (vps.ts, provision.ts, migrate, cloudflared, valid-vps.yml, schemas/provider.ts, dep `node-ssh`) (2026-05-04)
+- ✅ REFACTOR-002 — Refactor 🟧 + renommage `LocalAdapter` → `HostAdapter`, schéma config sans `target`/`provider`/`tunnel`, ajout `agent: { bind, port }` (2026-05-04)
+- ✅ REFACTOR-003 — Audit "zéro résidu" (4 greps vides côté `packages/src`) + rapport completion + run frais install/test/typecheck/build/lint (2026-05-04)
 - ⬜ **DOC-001** — `docs/migration-guide.md` (livrable critique : seul artefact de migration côté produit). Doit contenir :
   - **§1 — Migrer une app existante vers ARC** : commandes copiables, du dump source jusqu'à `arc project add` + `git push`, en moins de 30 min. Couvre **3 cas** (chacun avec sa procédure pas-à-pas testée à blanc) :
     - **§1.a — Next.js + Postgres simple** (cas le plus commun)
