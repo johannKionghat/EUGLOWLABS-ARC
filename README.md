@@ -1,10 +1,10 @@
 # EuglowLabs ARC
 
-> *Autonomous Resource Cloud* — turn any VPS into a self-hosted "Vercel + Supabase + Ollama" cockpit, in one command.
+> *Autonomous Resource Cloud* — turn any machine (VPS, Raspberry Pi, WSL2…) into a self-hosted "Vercel + Supabase + Ollama" cockpit, in one command run **on the machine itself**.
 
-EuglowLabs ARC is a tooling stack for solo founders who want to run their entire SaaS infrastructure on a single VPS without paying per-seat for Vercel + Supabase + OpenAI + Sentry + Stripe. It bundles a CLI, an Agent, a Dashboard, and a multi-tenant SaaS layer — each shippable on its own.
+EuglowLabs ARC is a tooling stack for solo founders who want to run their entire SaaS infrastructure on a single machine without paying per-seat for Vercel + Supabase + OpenAI + Sentry + Stripe. It bundles a CLI, an Agent, a Dashboard, and a multi-tenant SaaS layer — each shippable on its own. Install model: single-machine, provider-agnostic, no remote provisioning (see [ADR-0012](docs/03-architecture-decisions/0012-single-machine-install.md)).
 
-This repository is a `pnpm` + `Turborepo` monorepo. It is **work in progress**; Phase 1 (CLI MVP) is complete, the rest is in flight.
+This repository is a `pnpm` + `Turborepo` monorepo. It is **work in progress**; Phase 1 (CLI MVP) is complete, Phase 1.5 (single-machine refactor) is wrapping up, the rest is in flight.
 
 ---
 
@@ -12,9 +12,9 @@ This repository is a `pnpm` + `Turborepo` monorepo. It is **work in progress**; 
 
 | Package | Status | Role |
 |---|---|---|
-| `@euglowlabs/arc-cli` | Phase 1 ✅ | Bootstrap, deploy, backup, migrate, project mgmt — entry point of the product |
+| `@euglowlabs/arc-cli` | Phase 1 ✅ | Bootstrap, deploy, backup, project mgmt — entry point of the product (runs **on** the target machine) |
 | `@euglowlabs/arc-shared` | Phase 1 ✅ | Zod schemas + types shared across CLI / Agent / Cloud |
-| `arc-agent` (Go) | Phase 2 ⬜ | Lightweight service installed on each managed VPS, exposes state to the Dashboard |
+| `arc-agent` (Go) | Phase 2 ⬜ | Lightweight service installed alongside the stack, exposes state to the Dashboard |
 | `@euglowlabs/arc-dashboard` | Phase 3 ⬜ | Self-hosted Next.js cockpit |
 | `@euglowlabs/arc-cloud` | Phase 4 ⬜ | Multi-tenant SaaS backend (closed source) |
 
@@ -47,7 +47,8 @@ arc deploy --dry-run
 ```
 arc help                       # Banner + command list
 arc init                       # Interactive config generator → arc.config.yml
-arc deploy [--dry-run]         # Render compose files + apply (target=local for now)
+arc setup                      # One-shot install on the current host (Phase 1.5)
+arc deploy [--dry-run]         # Render compose files + apply on the host
 arc status                     # docker compose ps parsed
 arc logs <service>             # tail logs
 arc restart <service>
@@ -55,7 +56,6 @@ arc backup --volume <name>     # pg_dumpall + tar.gz volumes
 arc restore [<id>]             # list / apply
 arc project add <name>         # Coolify + create database
 arc project list / deploy <name>
-arc migrate --to <host>        # backup → copy → deploy → restore on a VPS
 arc config telemetry on|off|status
 arc version                    # also: --version
 ```

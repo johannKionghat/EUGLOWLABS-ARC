@@ -20,11 +20,11 @@ export interface AnsibleRunResult {
  * Invoke `ansible-playbook` through the given adapter and stream its
  * stdout/stderr line by line.
  *
- * The function does not assume `ansible` is present on the operator's
- * machine when target=vps — the adapter abstracts that away. For
- * target=local, the operator must have `ansible-playbook` on PATH;
- * for target=vps, the same binary must be on the remote PATH (or
- * provisioned by an earlier role).
+ * Single-machine install model (ADR-0012): `ansible-playbook` is
+ * invoked locally on the host machine where `arc setup` runs. The
+ * adapter is `HostAdapter` in production and `MockAdapter` in tests.
+ * The host must have `ansible-playbook` on PATH (bootstrapped by
+ * `arc setup` itself if missing).
  */
 export async function runAnsiblePlaybook(
   adapter: ExecutionAdapter,

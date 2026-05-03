@@ -19,9 +19,10 @@ Vocabulaire du domaine. Quand un terme apparaît capitalisé dans la documentati
 
 ## Concepts techniques
 
-- **`arc.config.yml`** — Fichier déclaratif source de vérité pour l'infrastructure d'un utilisateur. Versionné dans Git. Contient `target`, `domain`, `provider`, `dns`, `stack`, `projects`. Validé par zod côté CLI.
-- **target** — Champ de `arc.config.yml`. Vaut `local` ou `vps`. Bascule entre exécution locale (WSL2/macOS/Linux + Cloudflare Tunnel) et exécution distante (VPS Hetzner + DNS A + Let's Encrypt). 95% du code est partagé entre les deux modes.
-- **LocalAdapter / VPSAdapter** — Implémentations du pattern adapter qui isole la couche d'exécution (commandes locales via `execa` vs commandes distantes via `node-ssh`). Cf. ADR-0009.
+- **`arc.config.yml`** — Fichier déclaratif source de vérité pour l'infrastructure d'un utilisateur. Versionné dans Git. Contient `project`, `domain`, `email`, `dns`, `agent`, `stack`, `backups`, `services`, `projects`. Validé par zod côté CLI.
+- **`arc setup`** — Commande unique d'install single-machine. Lancée **sur la machine cible** (ADR-0012), provider-agnostique (OVH, Hetzner, Scaleway, AWS, Raspberry Pi, WSL2…). Pas de provisioning distant.
+- **HostAdapter** — Implémentation unique de `ExecutionAdapter` côté production. Exécute les commandes localement via `execa` sur la machine où tourne le CLI. Cf. ADR-0012.
+- **MockAdapter** — Implémentation de `ExecutionAdapter` utilisée uniquement en tests pour capturer les appels sans rien exécuter.
 - **Template** — Bundle déployable (compose + manifest `arc-template.yml` + assets) listé sur le marketplace.
 - **Org / Organization** — Conteneur multi-tenant dans ARC Cloud. Regroupe utilisateurs et VPS. Permissions : owner, admin, member, viewer.
 
@@ -36,11 +37,11 @@ Trois réseaux isolés. Cf. ADR-0008.
 ## Dépendances upstream
 
 - **Coolify** — PaaS open-source (Apache 2.0) utilisé par ARC comme dépendance. Fournit deploy Git, SSL Let's Encrypt, gestion env vars, intégration Traefik. **Jamais forké** par ARC. Cf. ADR-0005.
-- **Dokploy** — Alternative à Coolify, plus légère. Supportée comme adapter optionnel pour les VPS contraints en RAM.
+- **Dokploy** — Alternative à Coolify, plus légère. Supportée comme adapter optionnel pour les machines contraintes en RAM.
 - **`local-ai-packaged`** — Bundle Docker Compose communautaire (`coleam00/local-ai-packaged`) intégrant Ollama, Supabase, n8n, Open WebUI, Qdrant, Neo4j, Flowise, Langfuse, SearXNG, Caddy. Déployé tel quel par `arc deploy`.
 - **OpenClaw** — AI gateway open-source (routing modèles, fallback cloud) ajouté à `ai_net` par compose maison.
 - **DeepAgents** — Framework d'orchestration d'agents IA ajouté à `ai_net` + `sandbox_net`.
-- **Cloudflare Tunnel** — Tunnel HTTPS public utilisé en mode `target: local` pour exposer la machine de dev sans port forward.
+- **Cloudflare Tunnel (Agent ↔ Dashboard)** — Option Phase 2 pour exposer le canal Agent ↔ Dashboard sur une machine sans IP publique. Hors périmètre Chantier 1.
 
 ## Plans & business
 

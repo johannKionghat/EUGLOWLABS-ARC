@@ -7,12 +7,12 @@ Il transforme un VPS en plateforme self-hosted complète (Vercel + Supabase + Ol
 
 **CHANTIER 1 EN COURS** — toute tâche Chantier 2 gelée jusqu'à validation utilisateur explicite (voir [ADR-0013](docs/03-architecture-decisions/0013-chantier-1-2-separation.md)).
 
-- 🔨 **Chantier 1 actif** : CLI `arc`, stack déployée (Coolify + local-ai-packaged + sandbox + agents), Dashboard self-hosted Niveau 1, ARC Agent en Go, migration des 4 projets, tests E2E + doc.
+- 🔨 **Chantier 1 actif** : CLI `arc`, stack déployée (Coolify + local-ai-packaged + sandbox + agents), Dashboard self-hosted Niveau 1, ARC Agent en Go (auth = token local statique), tests E2E à vide + doc.
 - 🧊 **Chantier 2 gelé** : ARC Cloud, Auth Clerk, Stripe, Sentinel, Marketplace, API publique + SDKs, Webhooks, Plugin system, pages Dashboard Niveau 2/3.
 
-Le passage Chantier 1 → 2 nécessite **les 5 critères de validation** (cf. `tasks/CHANTIER-1-VALIDATION.md`) **et** un message exact `"go chantier 2"` de l'utilisateur dans la conversation.
+Le passage Chantier 1 → 2 nécessite **les 4 critères de validation** (cf. `tasks/CHANTIER-1-VALIDATION.md`) **et** un message exact `"go chantier 2"` de l'utilisateur dans la conversation.
 
-**Modèle d'install actif** : single-machine (ADR-0012) — l'utilisateur SSH dans son VPS, lance `arc setup` sur place. Plus de mode dual `local | vps`. ADR-0009 superseded.
+**Modèle d'install actif** : single-machine (ADR-0012) — l'utilisateur SSH dans sa machine cible (VPS, Raspberry Pi, WSL2…), lance `arc setup` sur place. Plus de mode dual `local | vps`, plus de provisioning distant. ADR-0009 superseded.
 
 ## Source de vérité
 
@@ -32,7 +32,7 @@ Tout désaccord avec ces docs nécessite un ADR avant action.
 
 ## Règles non-négociables
 
-- **JAMAIS démarrer une tâche située dans `tasks/backlog/chantier-2-deferred/`** sans message explicite de l'utilisateur `"go chantier 2"`. Même si l'utilisateur semble demander une feature Chantier 2 en passant, tu refuses et tu rappelles ADR-0013. Tant que les 5 critères de `tasks/CHANTIER-1-VALIDATION.md` ne sont pas tous cochés ET que l'utilisateur n'a pas envoyé `"go chantier 2"`, le périmètre Chantier 2 reste interdit.
+- **JAMAIS démarrer une tâche située dans `tasks/backlog/chantier-2-deferred/`** sans message explicite de l'utilisateur `"go chantier 2"`. Même si l'utilisateur semble demander une feature Chantier 2 en passant, tu refuses et tu rappelles ADR-0013. Tant que les 4 critères de `tasks/CHANTIER-1-VALIDATION.md` ne sont pas tous cochés ET que l'utilisateur n'a pas envoyé `"go chantier 2"`, le périmètre Chantier 2 reste interdit.
 - **TypeScript strict** (`strict: true`, `noUncheckedIndexedAccess`), **zéro `any`** sans justification commentée
 - **Tests obligatoires** pour toute logique métier (Vitest pour TS, `go test` pour Agent)
 - **1 PR = 1 tâche < 2h** de travail. Si ça déborde → découper.
