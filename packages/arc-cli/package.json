@@ -8,7 +8,9 @@
   "bin": {
     "arc": "./dist/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node ./scripts/copy-templates.mjs",
     "build:bin": "node ./scripts/build-binaries.mjs",
@@ -22,7 +24,6 @@
     "clipanion": "4.0.0-rc.4",
     "eta": "^4.6.0",
     "execa": "^9.6.1",
-    "node-ssh": "^13.2.1",
     "yaml": "^2.8.3",
     "zod": "^4.4.2"
   },
