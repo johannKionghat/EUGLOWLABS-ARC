@@ -81,7 +81,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
   - **§5 — Rollback** : revenir à un état antérieur avec `arc restore <backup-id>` quand un déploiement casse.
   - **§6 — Troubleshooting** : 5 cas fréquents (DNS pas propagé, certif Let's Encrypt en échec, Coolify inaccessible, Postgres OOM, sandbox bloque legitimement le code agent).
   *(Mitigation obligatoire des P2 + P3 d'ADR-0012. Vérifié à blanc avant validation Chantier 1.)*
-- 🟡 **INSTALL-001** — `arc setup` cœur orchestration : squelette commande, idempotence config existante, prompts → écrit `~/.arc/arc.config.yml`, tests E2E "prompts → config écrite". *Renommage 001a → 001 (cf. ADR-0015 + scratchpad current.md).*
+- ✅ **INSTALL-001** — `arc setup` cœur orchestration (2026-05-04) : squelette commande, idempotence 6 cas, prompts → `~/.arc/arc.config.yml`, tests E2E via CLI factory (107 tests verts), smoke humain validé.
 - ⬜ **INSTALL-002** — `arc setup` exécution stack : détection `ansible-playbook`, invocation playbook stub, génération composes `~/.arc/compose/*.yml`, tests E2E "config existante → composes générés → stub OK". Suit INSTALL-001.
 - ⬜ ANSIBLE-001 — Rôles Ansible (hardening UFW + fail2ban, docker, coolify, ai-stack, sandbox, backups) exécutés en `localhost`
 - ⬜ DNS-001 — Cloudflare DNS records via API (A wildcard pointant sur l'IP publique de la machine)
