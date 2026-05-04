@@ -89,6 +89,23 @@ Total estimé : 10 fichiers touchés (création + 1 modif). Sous le seuil "5 fic
 
 **Garde-fou** : si en cours de route un fichier perd sa raison d'être (responsabilité floue, pourrait être inline ailleurs), STOP et redemander avant de le créer.
 
+### Observations smoke test (2026-05-04, sous-tâche 4)
+
+Confirmé en CLI compilée (`pnpm build` → `packages/arc-cli/dist/index.js`) :
+- ✅ Build TS → JS sans erreur, templates copiés.
+- ✅ `arc help` liste `arc setup` avec usage `arc setup [--force,-f]`.
+- ✅ `arc setup --help` affiche correctement description + options + 2 exemples.
+
+Smoke test interactif via stdin pipé (échec attendu, partiel) :
+- ⚠️ Driver clack/prompts via `printf '...' | node ...` produit un comportement dégradé : clack rendre les caractères mais le pipe sans TTY ne déclenche pas la validation correctement — fichier final non créé. **C'est un comportement clack, pas un bug ARC** : clack/prompts est conçu pour TTY raw mode.
+- 🚧 **Smoke test "vraiment interactif" reste à valider humainement** par l'auteur dans un terminal réel : `HOME=/tmp/arc-smoke-$(date +%s) node packages/arc-cli/dist/index.js setup`. À couvrir plus tard automatiquement par E2E-001 (avec `node-pty` ou subprocess + PTY).
+
+### Sous-tâches accomplies
+- 1/4 ✅ paths.ts (commit `e8f8f9b`)
+- 2/4 ✅ idempotence.ts (commit `fdab4b4`)
+- 3/4 ✅ orchestrate.ts + sensitive.ts + commands/setup.ts + cli register + barrel (commit `4f6193f`)
+- 4/4 ✅ E2E tests via CLI factory (8 cas, 1 skipped Windows) — commit en cours
+
 ### Cadrage idempotence — `detectExistingConfig()` (figé avant code)
 
 **Signature** :
