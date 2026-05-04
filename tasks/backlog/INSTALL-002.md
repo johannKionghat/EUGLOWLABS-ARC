@@ -1,10 +1,13 @@
-# INSTALL-001b — `arc setup` exécution stack
+# INSTALL-002 — `arc setup` exécution stack
 
 ## Statut
-⬜ Backlog — démarrer après INSTALL-001a ✅
+⬜ Backlog — démarrer après INSTALL-001 ✅
+
+## Origine
+Renommage post-découpage de l'ancien INSTALL-001 monolithique. INSTALL-001 = cœur orchestration, INSTALL-002 = exécution stack. Justification : hook commit-msg `[SCOPE-NNN]` strict + désir de découpage propre (deux tâches distinctes plutôt que sous-éléments fragmentés).
 
 ## Objectif
-Compléter `arc setup` (squelette livré par INSTALL-001a) avec : détection de `ansible-playbook` sur PATH, invocation d'un playbook stub via `runAnsiblePlaybook` existant, génération des composes maison sous `~/.arc/compose/` (cf. ADR-0015) à partir des templates Phase 1. Le playbook réel reste à ANSIBLE-001.
+Compléter `arc setup` (squelette livré par INSTALL-001) avec : détection de `ansible-playbook` sur PATH, invocation d'un playbook stub via `runAnsiblePlaybook` existant, génération des composes maison sous `~/.arc/compose/` (cf. ADR-0015) à partir des templates Phase 1. Le playbook réel reste à ANSIBLE-001.
 
 ## Critères d'acceptation
 - [ ] Fonction `assertAnsibleInstalled(adapter)` : exec `ansible-playbook --version`, message d'erreur balisé si absent (pas d'auto-install — hors scope).
@@ -24,9 +27,9 @@ Compléter `arc setup` (squelette livré par INSTALL-001a) avec : détection de 
 - `README.md` (racine, ligne tableau)
 
 ## ADRs liés
-- **ADR-0011** — Critère **A3** (`arc setup` < 15 min sur Ubuntu 24.04). Le stub de INSTALL-001b ne valide pas A3 par lui-même — A3 sera atteint avec ANSIBLE-001 + E2E-001.
+- **ADR-0011** — Critère **A3** (`arc setup` < 15 min sur Ubuntu 24.04). Le stub de INSTALL-002 ne valide pas A3 par lui-même — A3 sera atteint avec ANSIBLE-001 + E2E-001.
 - **ADR-0012** — Single-machine, `ansible-playbook` en `localhost`.
-- **ADR-0015** — Layout `~/.arc/compose/` (créé en cours d'INSTALL-001a).
+- **ADR-0015** — Layout `~/.arc/compose/` (créé en cours d'INSTALL-001).
 
 ## Hors scope
 - Rôles Ansible eux-mêmes (= ANSIBLE-001).
@@ -34,7 +37,7 @@ Compléter `arc setup` (squelette livré par INSTALL-001a) avec : détection de 
 - Création des records DNS Cloudflare (= DNS-001).
 - Tests E2E sur VM jetable (= E2E-001).
 
-## Plan provisoire (à raffiner au démarrage via `/arc-task-start INSTALL-001b`)
+## Plan provisoire (à raffiner au démarrage via `/arc-task-start INSTALL-002`)
 1. Helper `paths.ts` (arcUserDir, arcComposeDir, arcCredentialsDir) si pas livré dans 001a.
 2. Détection `ansible-playbook` + message d'erreur balisé.
 3. Stub `playbooks/setup.yml` + invocation via `runAnsiblePlaybook`.
@@ -43,4 +46,4 @@ Compléter `arc setup` (squelette livré par INSTALL-001a) avec : détection de 
 6. Doc in-source + README.
 
 ## Dépendance
-INSTALL-001a doit être ✅ avant. Au moment du démarrage, vérifier que la commande `arc setup` répond (squelette livré) et que la config peut s'écrire dans `~/.arc/arc.config.yml`.
+INSTALL-001 doit être ✅ avant. Au moment du démarrage, vérifier que la commande `arc setup` répond (squelette livré) et que la config peut s'écrire dans `~/.arc/arc.config.yml`.

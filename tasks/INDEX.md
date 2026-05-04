@@ -81,8 +81,8 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
   - **§5 — Rollback** : revenir à un état antérieur avec `arc restore <backup-id>` quand un déploiement casse.
   - **§6 — Troubleshooting** : 5 cas fréquents (DNS pas propagé, certif Let's Encrypt en échec, Coolify inaccessible, Postgres OOM, sandbox bloque legitimement le code agent).
   *(Mitigation obligatoire des P2 + P3 d'ADR-0012. Vérifié à blanc avant validation Chantier 1.)*
-- 🟡 **INSTALL-001a** — `arc setup` cœur orchestration : squelette commande, idempotence config existante, prompts → écrit `~/.arc/arc.config.yml`, tests E2E "prompts → config écrite". *Split de l'ancien INSTALL-001 (cf. ADR-0015).*
-- ⬜ **INSTALL-001b** — `arc setup` exécution stack : détection `ansible-playbook`, invocation playbook stub, génération composes `~/.arc/compose/*.yml`, tests E2E "config existante → composes générés → stub OK". Suit INSTALL-001a.
+- 🟡 **INSTALL-001** — `arc setup` cœur orchestration : squelette commande, idempotence config existante, prompts → écrit `~/.arc/arc.config.yml`, tests E2E "prompts → config écrite". *Renommage 001a → 001 (cf. ADR-0015 + scratchpad current.md).*
+- ⬜ **INSTALL-002** — `arc setup` exécution stack : détection `ansible-playbook`, invocation playbook stub, génération composes `~/.arc/compose/*.yml`, tests E2E "config existante → composes générés → stub OK". Suit INSTALL-001.
 - ⬜ ANSIBLE-001 — Rôles Ansible (hardening UFW + fail2ban, docker, coolify, ai-stack, sandbox, backups) exécutés en `localhost`
 - ⬜ DNS-001 — Cloudflare DNS records via API (A wildcard pointant sur l'IP publique de la machine)
 - ⬜ E2E-001 — Test bout-en-bout sur VM jetable (CI nightly, ~0,02 €/run). **Critère d'acceptation supplémentaire (issu DOC-001)** : E2E-001 doit valider empiriquement les commandes critiques de `docs/migration-guide.md` (au minimum §1.a et §1.b) et `docs/install-without-public-ip.md` (au minimum §4 et §5). Toute commande qui échoue doit déclencher un patch DOC-001.
