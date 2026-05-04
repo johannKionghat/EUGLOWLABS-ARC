@@ -69,7 +69,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ REFACTOR-001 — Suppression chirurgicale code 🟥 (vps.ts, provision.ts, migrate, cloudflared, valid-vps.yml, schemas/provider.ts, dep `node-ssh`) (2026-05-04)
 - ✅ REFACTOR-002 — Refactor 🟧 + renommage `LocalAdapter` → `HostAdapter`, schéma config sans `target`/`provider`/`tunnel`, ajout `agent: { bind, port }` (2026-05-04)
 - ✅ REFACTOR-003 — Audit "zéro résidu" (4 greps vides côté `packages/src`) + rapport completion + run frais install/test/typecheck/build/lint (2026-05-04)
-- ⬜ **DOC-001** — `docs/migration-guide.md` (livrable critique : seul artefact de migration côté produit). Doit contenir :
+- ✅ **DOC-001** — `docs/migration-guide.md` + `docs/install-without-public-ip.md` (2026-05-04). Couvre :
   - **§1 — Migrer une app existante vers ARC** : commandes copiables, du dump source jusqu'à `arc project add` + `git push`, en moins de 30 min. Couvre **3 cas** (chacun avec sa procédure pas-à-pas testée à blanc) :
     - **§1.a — Next.js + Postgres simple** (cas le plus commun)
     - **§1.b — App utilisant Supabase** (auth, storage, realtime, edge functions) — équivalence vers le Supabase self-hosted intégré au bundle `local-ai-packaged`
@@ -84,7 +84,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ⬜ INSTALL-001 — Commande `arc setup` all-in-one (questions interactives → écrit `~/.arc/arc.config.yml` → exécute Ansible local → bootstrap stack)
 - ⬜ ANSIBLE-001 — Rôles Ansible (hardening UFW + fail2ban, docker, coolify, ai-stack, sandbox, backups) exécutés en `localhost`
 - ⬜ DNS-001 — Cloudflare DNS records via API (A wildcard pointant sur l'IP publique de la machine)
-- ⬜ E2E-001 — Test bout-en-bout sur VM jetable (CI nightly, ~0,02 €/run)
+- ⬜ E2E-001 — Test bout-en-bout sur VM jetable (CI nightly, ~0,02 €/run). **Critère d'acceptation supplémentaire (issu DOC-001)** : E2E-001 doit valider empiriquement les commandes critiques de `docs/migration-guide.md` (au minimum §1.a et §1.b) et `docs/install-without-public-ip.md` (au minimum §4 et §5). Toute commande qui échoue doit déclencher un patch DOC-001.
 
 ---
 
