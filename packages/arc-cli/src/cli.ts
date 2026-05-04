@@ -9,6 +9,7 @@ import { LogsCommand } from "./commands/logs.js";
 import { ProjectAddCommand, ProjectDeployCommand, ProjectListCommand } from "./commands/project.js";
 import { RestartCommand } from "./commands/restart.js";
 import { RestoreCommand } from "./commands/restore.js";
+import { SetupCommand } from "./commands/setup.js";
 import { StatusCommand } from "./commands/status.js";
 import { TelemetryConfigCommand } from "./commands/telemetry.js";
 import { VersionCommand } from "./commands/version.js";
@@ -31,6 +32,7 @@ export function buildCli(): Cli<BaseContext> {
   cli.register(Builtins.VersionCommand);
   cli.register(VersionCommand);
   cli.register(InitCommand);
+  cli.register(SetupCommand);
   cli.register(DeployCommand);
   cli.register(StatusCommand);
   cli.register(LogsCommand);
