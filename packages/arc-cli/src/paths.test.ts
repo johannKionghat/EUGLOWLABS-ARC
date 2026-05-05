@@ -1,9 +1,17 @@
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { arcConfigPath, arcUserDir } from "./paths.js";
+import {
+  arcComposeDir,
+  arcConfigPath,
+  arcCredentialsDir,
+  arcStatePath,
+  arcUserDir,
+  bundledPlaybookPath,
+} from "./paths.js";
 
 describe("paths", () => {
   let originalHome: string | undefined;
@@ -48,6 +56,63 @@ describe("paths", () => {
     it("is consistent with arcUserDir", () => {
       process.env.HOME = "/tmp/another-home";
       expect(arcConfigPath().startsWith(arcUserDir())).toBe(true);
+    });
+  });
+
+  describe("arcComposeDir", () => {
+    it("returns <HOME>/.arc/compose when HOME is set", () => {
+      process.env.HOME = "/home/johann";
+      expect(arcComposeDir()).toBe(join("/home/johann", ".arc", "compose"));
+    });
+
+    it("sits under arcUserDir", () => {
+      process.env.HOME = "/tmp/h";
+      expect(arcComposeDir().startsWith(arcUserDir() + sep)).toBe(true);
+    });
+  });
+
+  describe("arcCredentialsDir", () => {
+    it("returns <HOME>/.arc/credentials when HOME is set", () => {
+      process.env.HOME = "/home/johann";
+      expect(arcCredentialsDir()).toBe(join("/home/johann", ".arc", "credentials"));
+    });
+
+    it("sits under arcUserDir", () => {
+      process.env.HOME = "/tmp/h";
+      expect(arcCredentialsDir().startsWith(arcUserDir() + sep)).toBe(true);
+    });
+  });
+
+  describe("arcStatePath", () => {
+    it("returns <HOME>/.arc/state.json when HOME is set", () => {
+      process.env.HOME = "/home/johann";
+      expect(arcStatePath()).toBe(join("/home/johann", ".arc", "state.json"));
+    });
+
+    it("sits under arcUserDir", () => {
+      process.env.HOME = "/tmp/h";
+      expect(arcStatePath().startsWith(arcUserDir() + sep)).toBe(true);
+    });
+  });
+
+  describe("bundledPlaybookPath", () => {
+    it("ends with playbooks/setup.yml", () => {
+      const p = bundledPlaybookPath();
+      expect(p.endsWith(join("playbooks", "setup.yml"))).toBe(true);
+    });
+
+    it("is independent of HOME", () => {
+      process.env.HOME = "/somewhere/else";
+      const a = bundledPlaybookPath();
+      process.env.HOME = "/another/place";
+      const b = bundledPlaybookPath();
+      expect(a).toBe(b);
+    });
+
+    // Existence assertion lives in sub-task 2 (playbook stub creation),
+    // unskipped once `playbooks/setup.yml` is shipped with the package.
+    it.skip("points to a file that exists on disk (bundled with the package)", () => {
+      expect(existsSync(bundledPlaybookPath())).toBe(true);
     });
   });
 });
