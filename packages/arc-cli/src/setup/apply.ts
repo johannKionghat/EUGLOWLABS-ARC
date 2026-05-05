@@ -76,6 +76,23 @@ export class AnsibleExecutionError extends Error {
   }
 }
 
+/**
+ * Thrown by {@link listExistingComposes} when the compose directory
+ * exists but cannot be read (typically EACCES because the parent
+ * directory has restrictive permissions). The orchestrate layer
+ * surfaces the path verbatim and exits with EXIT_ENV_ERROR.
+ */
+export class ComposeDirAccessError extends Error {
+  readonly path: string;
+  readonly cause: NodeJS.ErrnoException;
+  constructor(path: string, cause: NodeJS.ErrnoException) {
+    super(`Cannot read ${path}: ${cause.message}`);
+    this.name = "ComposeDirAccessError";
+    this.path = path;
+    this.cause = cause;
+  }
+}
+
 export interface AnsibleVersion {
   /** Detected version string, e.g. "2.16.3" or "2.10.0". */
   version: string;
@@ -286,7 +303,16 @@ export async function applyStack(
 
   // Step 2 — Detect existing state + composes.
   const composeDir = arcComposeDir();
-  const existingComposes = await listExistingComposes(composeDir);
+  let existingComposes: readonly string[];
+  try {
+    existingComposes = await listExistingComposes(composeDir);
+  } catch (err) {
+    if (err instanceof ComposeDirAccessError) {
+      cancel(`✗ Impossible d'accéder à ${err.path}.\n${err.cause.message}`);
+      return EXIT_ENV_ERROR;
+    }
+    throw err;
+  }
   const stateResult = await loadStateFile();
   if (stateResult.status === "future_schema") {
     note(
@@ -392,7 +418,11 @@ async function listExistingComposes(composeDir: string): Promise<readonly string
       .filter((e) => COMPOSE_FILES.includes(e as (typeof COMPOSE_FILES)[number]))
       .sort();
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "ENOENT") return [];
+    if (e.code === "EACCES" || e.code === "EPERM") {
+      throw new ComposeDirAccessError(composeDir, e);
+    }
     throw err;
   }
 }
