@@ -403,7 +403,7 @@ describe("applyStack", () => {
     await expect(stat(statePath)).rejects.toThrow();
   });
 
-  it("8 — ansible-playbook exits non-zero → composes rolled back, state.json absent, exit 2", async () => {
+  it("8 — ansible-playbook exits non-zero → composes left in place at final path, state.json absent, exit 2 (partial-state recovery via prompt on next run)", async () => {
     const adapter = new MockAdapter();
     adapter.programExec(VERSION_CMD, ANSIBLE_VERSION_OK);
     // Override exec to return non-zero on the playbook invocation but
@@ -422,12 +422,17 @@ describe("applyStack", () => {
     });
     expect(code).toBe(EXIT_ENV_ERROR);
     expect(cancelCalls.some((m) => m.includes("ansible-playbook failed"))).toBe(true);
+    expect(cancelCalls.some((m) => m.includes("left in place"))).toBe(true);
 
-    // No compose in the final dir, no .tmp/ left over, no state.json.
+    // Composes ARE in the final dir (transaction model: rename pre-Ansible).
+    const finals = (await readdir(composeDir)).filter((f) => f.endsWith(".yml")).sort();
+    expect(finals).toEqual([...COMPOSE_FILES].sort());
+
+    // .tmp/ is gone.
     const tmp = join(composeDir, ".tmp");
     await expect(stat(tmp)).rejects.toThrow();
-    const finals = await readdir(composeDir).catch(() => [] as string[]);
-    expect(finals.filter((f) => f.endsWith(".yml"))).toEqual([]);
+
+    // state.json is absent — invariant: state.json present ⇒ ansible succeeded.
     await expect(stat(statePath)).rejects.toThrow();
   });
 

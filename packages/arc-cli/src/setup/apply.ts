@@ -233,18 +233,32 @@ export interface ApplyStackOptions {
  * idempotence, generate the three composes under `~/.arc/compose/`,
  * invoke the bundled Ansible playbook, then commit `~/.arc/state.json`.
  *
- * Transactional ordering (INSTALL-002 Décision 2) :
- *   1. assertAnsibleInstalled  (no FS side effect)
+ * Transactional ordering (INSTALL-002 Décision 2 — corrected after
+ * sub-task 4 review : rename moved BEFORE ansible so the playbook can
+ * resolve composes at their final path via `docker compose -f
+ * ~/.arc/compose/X.yml`. Without this swap, ANSIBLE-001 would have to
+ * special-case `.tmp/` paths.) :
+ *   1. assertAnsibleInstalled            (no FS side effect)
  *   2. detect existing state + composes
- *   3. prompt user (skipped on `--force`)
+ *   3. prompt user                       (skipped on `--force`)
  *   4. mkdir compose dir + .tmp/ subdir
  *   5. render composes into `.tmp/`
- *   6. invoke ansible-playbook
- *   7. on success : rename `.tmp/*.yml` → final, drop `.tmp/`
- *   8. write state.json (commit marker)
+ *   6. rename `.tmp/*.yml` → final paths (atomic per file, drop `.tmp/`)
+ *   7. invoke ansible-playbook           (reads composes at final paths)
+ *   8. on success : write state.json     (commit marker)
  *
- * Any failure in steps 4-6 cleans up `.tmp/` and leaves state.json
- * untouched — caller can rerun without manual cleanup.
+ * Transaction model :
+ * - state.json is the **commit marker**. If it exists, the stack was
+ *   applied successfully (composes generated AND ansible succeeded).
+ * - Failure BEFORE rename (steps 4 or 5) : composes are still in
+ *   `.tmp/`, never visible at the final path. `.tmp/` is cleaned up.
+ * - Failure AFTER rename but BEFORE state.json (step 7 ansible
+ *   non-zero) : composes are in place, state.json absent → next run
+ *   detects "partial reset" via the prompt and proposes re-run. The
+ *   user can also inspect the generated composes for debugging.
+ * - Invariant : `state.json` present ⇒ composes valid AND ansible
+ *   applied successfully. `state.json` absent + composes present ⇒
+ *   last run failed at step 6 or 7 ; safe to retry.
  */
 export async function applyStack(
   cfg: ArcConfig,
@@ -321,9 +335,25 @@ export async function applyStack(
     return EXIT_ENV_ERROR;
   }
 
-  // Step 6 — Invoke ansible-playbook (stub for INSTALL-002 ; ANSIBLE-001
-  // delivers the real roles and may need composes at the FINAL paths,
-  // not .tmp/. Revisit ordering at that point.).
+  // Step 6 — Rename .tmp/*.yml → composeDir/*.yml (atomic per file)
+  // BEFORE invoking ansible. ANSIBLE-001 will need to read composes at
+  // their final paths (e.g. `docker compose -f ~/.arc/compose/...yml`),
+  // so they must be in place when the playbook runs.
+  try {
+    for (const file of COMPOSE_FILES) {
+      await rename(join(tmpDir, file), join(composeDir, file));
+    }
+    await rm(tmpDir, { recursive: true, force: true });
+  } catch (err) {
+    await rm(tmpDir, { recursive: true, force: true });
+    cancel(`✗ Failed to publish composes to ${composeDir}: ${(err as Error).message}`);
+    return EXIT_ENV_ERROR;
+  }
+
+  // Step 7 — Invoke ansible-playbook (stub for INSTALL-002 ; real roles
+  // land in ANSIBLE-001). On failure, composes stay in place — the user
+  // can inspect them and rerun. state.json stays absent so the next run
+  // detects the partial state via the idempotence prompt.
   const runId = randomUUID();
   const onLine = opts.onAnsibleLine ?? ((line: string) => process.stdout.write(`${line}\n`));
   const runResult = await runAnsiblePlaybook(adapter, bundledPlaybookPath(), {
@@ -331,18 +361,11 @@ export async function applyStack(
     onLine,
   });
   if (runResult.exitCode !== 0) {
-    await rm(tmpDir, { recursive: true, force: true });
     cancel(
-      `✗ ansible-playbook failed (exit ${runResult.exitCode}). Composes rolled back ; state.json not updated.`,
+      `✗ ansible-playbook failed (exit ${runResult.exitCode}). Composes left in place at ${composeDir} for inspection ; state.json not updated.`,
     );
     return EXIT_ENV_ERROR;
   }
-
-  // Step 7 — Rename .tmp/*.yml → composeDir/*.yml (atomic per file).
-  for (const file of COMPOSE_FILES) {
-    await rename(join(tmpDir, file), join(composeDir, file));
-  }
-  await rm(tmpDir, { recursive: true, force: true });
 
   // Step 8 — Commit : write state.json. THIS is the transactional commit.
   const state: ArcState = {
