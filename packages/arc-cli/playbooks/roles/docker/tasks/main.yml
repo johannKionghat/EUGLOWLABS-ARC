@@ -1,0 +1,11 @@
+---
+# Docker role — task entry point.
+#
+# Policy (ANSIBLE-001a sub-task 4) :
+#  - Install Docker Engine + Compose v2 plugin from the official Docker apt repo.
+#  - No standalone docker-compose v1 (deprecated). Existing v1 binaries are
+#    NOT auto-purged — coexistence is the user's responsibility.
+#  - Add {{ arc_user }} to the `docker` group so subsequent `arc *` commands
+#    run `docker compose ...` without sudo.
+#
+# Implementation lands in ANSIBLE-001a sub-task 4.

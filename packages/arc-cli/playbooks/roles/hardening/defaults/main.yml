@@ -1,0 +1,7 @@
+---
+# Hardening role — default variables.
+#
+# arc_ssh_port: SSH port the role should keep open in UFW and allow in fail2ban.
+# Default 22 (compatible with vanilla VPS / RPi / WSL2). Change requires careful
+# transition (open new port BEFORE closing old) — handled in 001b/c, not here.
+arc_ssh_port: 22

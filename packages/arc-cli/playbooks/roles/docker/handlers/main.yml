@@ -1,0 +1,3 @@
+---
+# Docker role — handlers.
+# Populated in sub-task 4 if needed (e.g. restart docker on /etc/docker/daemon.json change).

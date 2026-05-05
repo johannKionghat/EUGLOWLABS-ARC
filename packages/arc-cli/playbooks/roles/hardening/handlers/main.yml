@@ -1,0 +1,3 @@
+---
+# Hardening role — handlers.
+# Populated in sub-task 3 (restart fail2ban, reload sshd).

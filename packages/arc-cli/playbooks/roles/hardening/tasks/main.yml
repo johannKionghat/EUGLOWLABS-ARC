@@ -1,0 +1,12 @@
+---
+# Hardening role — task entry point.
+#
+# Policy (ANSIBLE-001a, ADR-0011 §B10) :
+#  - UFW : default deny incoming / allow outgoing, allow {{ arc_ssh_port }} + 80 + 443 only.
+#    NO port 8000 (Coolify dashboard stays localhost-only, accessed via SSH tunnel
+#    or behind Coolify auth).
+#  - fail2ban : jails sshd + recidive only (no apache/nginx in 001a).
+#  - SSH : drop-in /etc/ssh/sshd_config.d/99-arc.conf, no in-place edits to sshd_config.
+#  - unattended-upgrades : security only, no auto-reboot.
+#
+# Implementation lands in ANSIBLE-001a sub-tasks 2 (UFW) + 3 (fail2ban + SSH + unattended).

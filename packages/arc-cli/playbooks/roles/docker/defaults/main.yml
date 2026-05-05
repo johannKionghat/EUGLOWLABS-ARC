@@ -1,0 +1,7 @@
+---
+# Docker role — default variables.
+#
+# arc_user: local user added to the `docker` group so post-setup `arc *` commands
+# can run `docker compose ...` without sudo. Defaults to the user that invoked
+# ansible-playbook (i.e. the user running `arc setup --apply`).
+arc_user: "{{ ansible_user_id }}"
