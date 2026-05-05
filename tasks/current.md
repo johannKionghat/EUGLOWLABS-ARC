@@ -1,32 +1,97 @@
-# Aucune tâche active — prête à démarrer INSTALL-002 ou ANSIBLE-001
+# Tâche en cours : INSTALL-002 — `arc setup` exécution stack
 
-## État global du Chantier 1
-- **Phase 0** : 10/10 ✅
-- **Phase 1** : 28/28 ✅ *(modèle dual ADR-0009 — refactoré en Phase 1.5)*
-- **Phase 1.5** : 5/9 ✅ — REFACTOR-001/002/003 + DOC-001 + INSTALL-001. Restant : INSTALL-002, ANSIBLE-001, DNS-001, E2E-001
-- **Phase 2** : 0/14 (ARC Agent Go, auth = token local statique)
-- **Phase 3** : 0/15 (Dashboard Niveau 1 self-hosted)
-- **Phase 4** : 0/7 (VALIDATE-001 à 007 — validation infra à vide)
+## Statut
+🟡 En cours — démarrée le 2026-05-04
 
-## Prochaine session — question stratégique à trancher
+## Objectif
+Compléter `arc setup` (cœur livré par INSTALL-001) avec la phase **apply** : détecter `ansible-playbook` sur PATH, invoquer un playbook stub no-op (le vrai playbook est ANSIBLE-001), et générer les composes maison sous `~/.arc/compose/`. Cible : un `arc setup --apply` exécutable de bout en bout, testable via MockAdapter, qui livre un cadre d'invocation prêt à recevoir les rôles Ansible réels.
 
-INSTALL-002 et ANSIBLE-001 sont **couplées** : INSTALL-002 invoque le playbook que ANSIBLE-001 doit produire. Deux options à arbitrer en début de session suivante :
+## Critères d'acceptation
+- [ ] Helper `arcComposeDir()` + `arcCredentialsDir()` + `bundledPlaybookPath()` ajoutés dans `paths.ts`
+- [ ] Stub `playbooks/setup.yml` créé (play `localhost`, message balisé conforme au backlog, exit 0), localisé pour résolution depuis le binaire compilé
+- [ ] Fonction `assertAnsibleInstalled(adapter)` : `ansible-playbook --version` → message d'erreur balisé clair si absent, **pas d'auto-install**
+- [ ] Fonction `applyStack(cfg, adapter)` : `mkdir -p ~/.arc/compose/` (mode 0755) → écrit les 3 composes via `generateProdCompose`/`generateSandboxCompose`/`generateAgentsCompose` → invoque le stub via `runAnsiblePlaybook`
+- [ ] Flag `--apply` ajouté à `SetupCommand` ; sans `--apply`, comportement INSTALL-001 inchangé
+- [ ] Quand `--apply` est passé : `runSetup` appelle `applyStack` après écriture/réutilisation de la config (et dans le chemin "reuse")
+- [ ] Tests E2E Vitest : config existante + `--apply` → composes générés sur fs tmp + adapter mock reçoit `ansible-playbook ... playbooks/setup.yml` + exit 0
+- [ ] Test : `--apply` sans `ansible-playbook` sur PATH → exit code env_error + message balisé
+- [ ] `Command.Usage` de `setup.ts` mentionne `--apply` avec un exemple
+- [ ] Ligne `arc setup` du tableau commandes du README racine ajoutée/mise à jour
+- [ ] `pnpm test` + `pnpm lint` + `pnpm typecheck` verts (objectif ≥ 109 tests verts)
 
-### Option A — ANSIBLE-001 d'abord, puis INSTALL-002
-- **Pour** : produit le code "réel" (rôles Ansible) avant de l'invoquer ; permet de valider chaque rôle indépendamment ; INSTALL-002 devient un wrapper trivial.
-- **Contre** : ANSIBLE-001 demande accès à une VM jetable pour tester réellement ses rôles, ce qui pré-charge E2E-001 sans qu'on l'ait livré. Risque de tâtonnement long sur le hardening Ansible sans cadre d'invocation.
+## Fichiers concernés (estimation : 6-7 fichiers)
+- `packages/arc-cli/src/paths.ts` (extension)
+- `packages/arc-cli/src/setup/apply.ts` (création)
+- `packages/arc-cli/src/setup/apply.test.ts` (création)
+- `packages/arc-cli/src/setup/orchestrate.ts` (branchement `--apply`)
+- `packages/arc-cli/src/commands/setup.ts` (flag + usage)
+- `packages/arc-cli/playbooks/setup.yml` (création stub — sous le package pour bundling)
+- `README.md` racine (ligne tableau commandes)
 
-### Option B — INSTALL-002 d'abord avec stub no-op + ANSIBLE-001 remplit ensuite
-- **Pour** : cohérent avec la stratégie déjà adoptée (`playbooks/setup.yml` stub no-op planifié dans `tasks/backlog/INSTALL-002.md`) ; INSTALL-002 livrable sans dépendance forte ; ANSIBLE-001 peut alors être attaqué avec un cadre d'invocation testable.
-- **Contre** : produit du code "non utile" (stub) qui sera réécrit ; double bascule code en cours de Phase 1.5.
+⚠️ 7 fichiers, à la limite haute. Si extension `orchestrate.ts` devient lourde, on garde tout dans `apply.ts` et on n'expose qu'un point d'entrée unique.
 
-**Pas urgent** — à trancher en début de prochaine session. Le mémo doit ouvrir la session avec un `/arc-task-start INSTALL-002` ou `/arc-task-start ANSIBLE-001` selon le choix.
+## ADRs liés
+- ADR-0011 — Critère **A3** (`arc setup` < 15 min). Ce stub ne valide PAS A3 ; A3 viendra avec ANSIBLE-001 + E2E-001
+- ADR-0012 — Single-machine, `ansible-playbook` invoqué en `localhost`
+- ADR-0015 — Layout `~/.arc/compose/` (helpers obligatoires, pas de chemin en dur)
 
-## Référence post-merge INSTALL-001
-- Commits sur `main` : `e8f8f9b` → `c5d42d6` + commit d'archivage à venir.
-- Documents livrés : `paths.ts`, `setup/idempotence.ts`, `setup/orchestrate.ts`, `setup/sensitive.ts`, `setup/index.ts`, `commands/setup.ts`, `cli.ts` (modif), 5 fichiers de tests, `docs/03-architecture-decisions/0015-layout-arc-user-artifacts.md`.
-- Tests arc-cli : **107 passed + 2 skipped** (vs 71 pré-INSTALL-001).
-- Smoke test humain : 4/4 scénarios validés.
+## Conventions à respecter
+- `coding-style.md` — TS strict, zéro `any` non justifié
+- `testing.md` — Vitest, MockAdapter pour Ansible, fs réel sur `tmp/` ou env `HOME` override
+- ADR-0015 — toute référence à `~/.arc/...` passe par les helpers de `paths.ts`
 
-## CLI à ce jour (post-INSTALL-001)
-`version`, `help`, `init`, **`setup`**, `deploy`, `status`, `logs`, `restart`, `backup`, `restore`, `project add|list|deploy`, `config telemetry`. Sortie de `arc setup` : config écrite dans `~/.arc/arc.config.yml`. **Apply de la stack à venir avec INSTALL-002.**
+## Hors scope (NE PAS faire)
+- Écrire les vrais rôles Ansible (= ANSIBLE-001)
+- Auto-installer `ansible-playbook` si absent
+- Créer les records DNS Cloudflare (= DNS-001)
+- Lancer un E2E sur VM jetable (= E2E-001)
+- Toucher à `arc init` (gel décidé en INSTALL-001)
+- Refactorer la résolution des chemins de templates eta (déjà OK)
+
+## Questions ouvertes à arbitrer avant de coder
+1. **Localisation du stub `playbooks/setup.yml`** : repo root (comme indiqué dans le backlog `tasks/backlog/INSTALL-002.md` ligne 27) **OU** sous `packages/arc-cli/playbooks/` pour être bundlé avec le binaire `bun build --compile` ? Recommandation : **sous le package** (`packages/arc-cli/playbooks/setup.yml`) pour que `bundledPlaybookPath()` fonctionne aussi en single binary. Le repo root rendrait le stub introuvable une fois le CLI installé via npm/Homebrew.
+2. **Comportement par défaut de `arc setup`** : avec `--apply` uniquement (cohérent avec l'actuel hint `arc setup --apply`), ou apply automatique post-config-write ? Recommandation : **`--apply` opt-in**, conserve la séparation prompt/apply lisible et ne casse pas les tests INSTALL-001.
+
+## Plan d'implémentation
+
+### Sous-tâche 1 : Extension `paths.ts` + tests
+- Fichiers : `paths.ts`, `paths.test.ts` (création)
+- Effort : ~15 min
+- Détail : ajoute `arcComposeDir()`, `arcCredentialsDir()`, `bundledPlaybookPath()`. Le dernier résout depuis `import.meta.url` vers `<package>/playbooks/setup.yml`. Tests : valeurs sous `$HOME` override, présence du fichier playbook bundlé.
+
+### Sous-tâche 2 : Stub `playbooks/setup.yml`
+- Fichiers : `packages/arc-cli/playbooks/setup.yml` (création)
+- Effort : ~10 min
+- Détail : play `hosts: localhost`, `connection: local`, une `debug` task imprimant le message balisé exact du backlog, exit 0 implicite. Vérifier que le bundling Bun inclut bien le fichier (sinon l'ajouter à `package.json#files`).
+
+### Sous-tâche 3 : `assertAnsibleInstalled` + helper run
+- Fichiers : `setup/apply.ts` (création initiale), `setup/apply.test.ts` (création)
+- Effort : ~25 min
+- Détail : fonction qui exec `ansible-playbook --version` via adapter, capture exit ≠ 0 ou ENOENT, lance erreur balisée `ANSIBLE_NOT_FOUND` avec instructions d'install (apt/brew/pip). Tests via MockAdapter : success, exit code ≠ 0, exception throw.
+
+### Sous-tâche 4 : `applyStack(cfg, adapter)`
+- Fichiers : `setup/apply.ts` (extension), `setup/apply.test.ts` (extension)
+- Effort : ~25 min
+- Détail : mkdir -p `arcComposeDir()` mode 0755, écrit les 3 composes via les générateurs existants, appelle `runAnsiblePlaybook(adapter, bundledPlaybookPath(), { onLine })`. Retourne `EXIT_OK` ou `EXIT_ENV_ERROR`. Tests : fs réel sous `HOME` override, MockAdapter assert call args.
+
+### Sous-tâche 5 : Branchement `--apply` dans orchestrate + commande
+- Fichiers : `setup/orchestrate.ts`, `commands/setup.ts`
+- Effort : ~20 min
+- Détail : ajoute `applyStack` dans `SetupOptions`, propage flag `apply: boolean`. Quand `apply === true` ET le statut final est OK (`absent` après write, `valid` après reuse, `corrupted/schema_mismatch` après backup+rewrite), appelle `applyStack(cfg, hostAdapter)`. Met à jour `Command.Usage` avec un exemple `arc setup --apply`.
+
+### Sous-tâche 6 : Tests E2E setup-e2e.test.ts
+- Fichiers : `setup/setup-e2e.test.ts` (extension)
+- Effort : ~25 min
+- Détail : 3 nouveaux scénarios — (a) `--apply` sans config existante : prompts mock + apply OK ; (b) `--apply` avec config valide réutilisée : apply direct ; (c) `--apply` sans `ansible-playbook` : exit env_error + message balisé. Mock `HostAdapter` injectable via factory déjà en place.
+
+### Sous-tâche 7 : Doc — Usage + README
+- Fichiers : `commands/setup.ts` (Usage déjà touché en sous-tâche 5, vérification finale), `README.md`
+- Effort : ~10 min
+- Détail : ligne tableau commandes README mise à jour pour mentionner `arc setup [--apply]` avec une description courte (config + génération composes + apply Ansible stub).
+
+## Scratchpad
+- **Sous-tâche 1 ✅** (commit `13dcfe4`) : `paths.ts` étendu avec 4 helpers (`arcComposeDir`, `arcCredentialsDir`, `arcStatePath`, `bundledPlaybookPath`). Bonne nouvelle : `bundledPlaybookPath()` résout pareil depuis src/ et dist/ (les deux sont 1 niveau sous le package root) → `../playbooks/setup.yml`. Pas besoin de copy step. Tests : 13 passés + 1 skip (existence playbook, à délivrer en sous-tâche 2). Suite globale arc-cli : 115 passés + 3 skipped.
+- **Sous-tâche 2 ✅** : stub `packages/arc-cli/playbooks/setup.yml` créé (1 play `localhost`/`connection: local`, 1 task `debug` avec les 4 lignes de message exactes). YAML validé via `yaml.parse` Node (pas d'Ansible local — voir CLI gap ci-dessous). `playbooks` ajouté à `package.json#files`. Test d'existence unskippé. Suite globale arc-cli : **116 passés + 2 skipped**. Lint + typecheck verts.
+
+## CLI gaps (notes parking)
+- **CLI-025 — bundling `bun build --compile`** : `bundledPlaybookPath()` résout vers `<package>/playbooks/setup.yml`, OK pour npm install / Homebrew. Pour le binaire single `bun build --compile`, vérifier que le playbook (et les futurs rôles ANSIBLE-001 sous `playbooks/roles/`) sont bien embarqués comme assets. Si non, ajouter un flag `--asset` au script `build:bin` ou extraire le playbook au runtime. À traiter avant E2E-001 sur VM jetable.

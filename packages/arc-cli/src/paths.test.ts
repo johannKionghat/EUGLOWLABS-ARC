@@ -109,9 +109,7 @@ describe("paths", () => {
       expect(a).toBe(b);
     });
 
-    // Existence assertion lives in sub-task 2 (playbook stub creation),
-    // unskipped once `playbooks/setup.yml` is shipped with the package.
-    it.skip("points to a file that exists on disk (bundled with the package)", () => {
+    it("points to a file that exists on disk (bundled with the package)", () => {
       expect(existsSync(bundledPlaybookPath())).toBe(true);
     });
   });
