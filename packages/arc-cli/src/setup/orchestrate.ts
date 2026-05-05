@@ -7,21 +7,12 @@ import type { ArcConfig } from "@euglowlabs/arc-shared";
 import { promptForConfig } from "../init/prompts.js";
 import { writeArcConfig } from "../init/write.js";
 import { arcConfigPath, arcUserDir } from "../paths.js";
+import { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK } from "./exit-codes.js";
 import { type DetectionResult, detectExistingConfig } from "./idempotence.js";
 import { isSensitiveField, maskSensitiveValue } from "./sensitive.js";
 
-/**
- * Exit codes returned by {@link runSetup}.
- *
- * - 0   — success (config written or kept as-is).
- * - 1   — user cancelled (chose "Annuler" in any menu).
- * - 2   — environment error (permission_denied, user_dir_invalid).
- * - 130 — SIGINT (Ctrl+C). Not produced explicitly by this module —
- *         Node propagates the signal naturally and we never swallow it.
- */
-export const EXIT_OK = 0;
-export const EXIT_CANCELLED = 1;
-export const EXIT_ENV_ERROR = 2;
+// Re-exported for backwards compatibility with existing callers.
+export { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK };
 
 export interface SetupOptions {
   /** Skip the "Réécrire" confirmation menu when a valid config exists ; overwrite directly. */

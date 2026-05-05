@@ -1,4 +1,26 @@
+import { randomUUID } from "node:crypto";
+import { chmod, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import { cancel, note, select } from "@clack/prompts";
+import type { ArcConfig } from "@euglowlabs/arc-shared";
+
+import { runAnsiblePlaybook } from "../ansible/run.js";
 import type { ExecutionAdapter } from "../exec/index.js";
+import { arcComposeDir, bundledPlaybookPath } from "../paths.js";
+import {
+  generateAgentsCompose,
+  generateProdCompose,
+  generateSandboxCompose,
+} from "../templates/index.js";
+import { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK } from "./exit-codes.js";
+import {
+  type ArcState,
+  type LoadStateResult,
+  STATE_SCHEMA_VERSION,
+  loadStateFile,
+  writeStateFile,
+} from "./state.js";
 
 /**
  * Minimum `ansible-playbook` version we recommend (informative only).
@@ -158,4 +180,248 @@ function isEnoent(err: unknown): boolean {
   if (err === null || typeof err !== "object") return false;
   const code = (err as { code?: unknown }).code;
   return code === "ENOENT";
+}
+
+// ---------------------------------------------------------------------------
+// applyStack — INSTALL-002 Décisions 1-7
+// ---------------------------------------------------------------------------
+
+/**
+ * Compose filenames managed by `applyStack`, in alphabetical order
+ * (stable diffs in `state.json#compose_files`). The names match the
+ * existing template renderers in `packages/arc-cli/src/templates/`
+ * (CLI-006/007/008) — see INSTALL-002 Décision 1 (a).
+ */
+export const COMPOSE_FILES = [
+  "docker-compose.agents.yml",
+  "docker-compose.prod.yml",
+  "docker-compose.sandbox.yml",
+] as const;
+
+/**
+ * Literal banner printed when `applyStack` is invoked with `force: true`
+ * — INSTALL-002 Décision 4.d. Stored as a constant so tests assert on
+ * the exact string.
+ */
+export const FORCE_NOTICE = "⚠️  --force enabled, skipping idempotence prompt";
+
+export interface ComposeGenerators {
+  prod: (cfg: ArcConfig) => string;
+  sandbox: (cfg: ArcConfig) => string;
+  agents: (cfg: ArcConfig) => string;
+}
+
+const DEFAULT_COMPOSERS: ComposeGenerators = {
+  prod: generateProdCompose,
+  sandbox: generateSandboxCompose,
+  agents: generateAgentsCompose,
+};
+
+export interface ApplyStackOptions {
+  /** Skip the idempotence prompt — see INSTALL-002 Décision 4. */
+  force?: boolean;
+  /** Test seam : inject custom compose generators (e.g. throwing one). */
+  composers?: ComposeGenerators;
+  /** Test seam : inject a clock so duration formatting is deterministic. */
+  now?: () => Date;
+  /** Test seam : sink for the ansible-playbook stream. Default = stdout. */
+  onAnsibleLine?: (line: string) => void;
+}
+
+/**
+ * Apply the local ARC stack on the host : detect Ansible, prompt for
+ * idempotence, generate the three composes under `~/.arc/compose/`,
+ * invoke the bundled Ansible playbook, then commit `~/.arc/state.json`.
+ *
+ * Transactional ordering (INSTALL-002 Décision 2) :
+ *   1. assertAnsibleInstalled  (no FS side effect)
+ *   2. detect existing state + composes
+ *   3. prompt user (skipped on `--force`)
+ *   4. mkdir compose dir + .tmp/ subdir
+ *   5. render composes into `.tmp/`
+ *   6. invoke ansible-playbook
+ *   7. on success : rename `.tmp/*.yml` → final, drop `.tmp/`
+ *   8. write state.json (commit marker)
+ *
+ * Any failure in steps 4-6 cleans up `.tmp/` and leaves state.json
+ * untouched — caller can rerun without manual cleanup.
+ */
+export async function applyStack(
+  cfg: ArcConfig,
+  adapter: ExecutionAdapter,
+  opts: ApplyStackOptions = {},
+): Promise<number> {
+  // Step 1 — Ansible detection (always, even with --force per Décision 4.b).
+  let ansibleVersion: AnsibleVersion;
+  try {
+    ansibleVersion = await assertAnsibleInstalled(adapter);
+  } catch (err) {
+    if (err instanceof AnsibleNotInstalledError) {
+      cancel(err.message);
+      return EXIT_ENV_ERROR;
+    }
+    if (err instanceof AnsibleExecutionError) {
+      cancel(`✗ ansible-playbook --version failed: ${err.message}`);
+      return EXIT_ENV_ERROR;
+    }
+    throw err;
+  }
+  if (ansibleVersion.warning !== undefined) {
+    note(`⚠️  ${ansibleVersion.warning}`);
+  }
+
+  // Step 2 — Detect existing state + composes.
+  const composeDir = arcComposeDir();
+  const existingComposes = await listExistingComposes(composeDir);
+  const stateResult = await loadStateFile();
+  if (stateResult.status === "future_schema") {
+    note(
+      `⚠️  ~/.arc/state.json schema_version=${stateResult.rawSchemaVersion} > ${STATE_SCHEMA_VERSION} — schema version inconnue, prudence.`,
+    );
+  }
+
+  // Step 3 — Idempotence prompt (skipped on --force).
+  const nowFn = opts.now ?? (() => new Date());
+  if (opts.force === true) {
+    if (stateResult.status === "ok" || existingComposes.length > 0) {
+      note(FORCE_NOTICE);
+    }
+  } else {
+    const decision = await idempotencePrompt(stateResult, existingComposes, nowFn());
+    if (decision === "cancel") {
+      cancel("setup --apply cancelled");
+      return EXIT_CANCELLED;
+    }
+    // "proceed" or "no_action_needed" → continue.
+  }
+
+  // Step 4 — mkdir compose dir + .tmp/.
+  const tmpDir = join(composeDir, ".tmp");
+  try {
+    await mkdir(composeDir, { recursive: true, mode: 0o700 });
+    // Re-chmod : umask may have masked the mode flag passed to mkdir.
+    await chmod(composeDir, 0o700);
+    // Best-effort wipe of any stale .tmp/ from a previous crashed run.
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true, mode: 0o700 });
+  } catch (err) {
+    cancel(`✗ Cannot create ${composeDir}: ${(err as Error).message}`);
+    return EXIT_ENV_ERROR;
+  }
+
+  // Step 5 — Generate composes into .tmp/.
+  const composers = opts.composers ?? DEFAULT_COMPOSERS;
+  try {
+    await writeComposeFile(join(tmpDir, "docker-compose.prod.yml"), composers.prod(cfg));
+    await writeComposeFile(join(tmpDir, "docker-compose.sandbox.yml"), composers.sandbox(cfg));
+    await writeComposeFile(join(tmpDir, "docker-compose.agents.yml"), composers.agents(cfg));
+  } catch (err) {
+    await rm(tmpDir, { recursive: true, force: true });
+    cancel(`✗ Compose generation failed: ${(err as Error).message}`);
+    return EXIT_ENV_ERROR;
+  }
+
+  // Step 6 — Invoke ansible-playbook (stub for INSTALL-002 ; ANSIBLE-001
+  // delivers the real roles and may need composes at the FINAL paths,
+  // not .tmp/. Revisit ordering at that point.).
+  const runId = randomUUID();
+  const onLine = opts.onAnsibleLine ?? ((line: string) => process.stdout.write(`${line}\n`));
+  const runResult = await runAnsiblePlaybook(adapter, bundledPlaybookPath(), {
+    extraVars: { arc_playbook_run_id: runId },
+    onLine,
+  });
+  if (runResult.exitCode !== 0) {
+    await rm(tmpDir, { recursive: true, force: true });
+    cancel(
+      `✗ ansible-playbook failed (exit ${runResult.exitCode}). Composes rolled back ; state.json not updated.`,
+    );
+    return EXIT_ENV_ERROR;
+  }
+
+  // Step 7 — Rename .tmp/*.yml → composeDir/*.yml (atomic per file).
+  for (const file of COMPOSE_FILES) {
+    await rename(join(tmpDir, file), join(composeDir, file));
+  }
+  await rm(tmpDir, { recursive: true, force: true });
+
+  // Step 8 — Commit : write state.json. THIS is the transactional commit.
+  const state: ArcState = {
+    schema_version: STATE_SCHEMA_VERSION,
+    last_apply: nowFn().toISOString(),
+    compose_files: [...COMPOSE_FILES],
+    ansible_version: ansibleVersion.version,
+    playbook_run_id: runId,
+  };
+  await writeStateFile(state);
+  return EXIT_OK;
+}
+
+async function writeComposeFile(path: string, content: string): Promise<void> {
+  await writeFile(path, content, { encoding: "utf8", mode: 0o600 });
+  // Re-chmod : umask may strip the 0o600 mode flag.
+  await chmod(path, 0o600);
+}
+
+async function listExistingComposes(composeDir: string): Promise<readonly string[]> {
+  try {
+    const entries = await readdir(composeDir);
+    return entries
+      .filter((e) => COMPOSE_FILES.includes(e as (typeof COMPOSE_FILES)[number]))
+      .sort();
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw err;
+  }
+}
+
+type IdempotenceDecision = "proceed" | "cancel";
+
+async function idempotencePrompt(
+  state: LoadStateResult,
+  existingComposes: readonly string[],
+  now: Date,
+): Promise<IdempotenceDecision> {
+  // First-run path : no state file AND no existing composes → nothing to ask.
+  if (state.status === "absent" && existingComposes.length === 0) {
+    return "proceed";
+  }
+
+  const composesLines = (existingComposes.length > 0 ? existingComposes : COMPOSE_FILES)
+    .map((f) => `  - ${f}`)
+    .join("\n");
+
+  let header: string;
+  if (state.status === "ok") {
+    const last = new Date(state.state.last_apply);
+    header = `⚠️  Stack ARC déjà appliquée le ${formatHumanDate(last)} (il y a ${formatDuration(now.getTime() - last.getTime())}).\n\nComposes existants dans ~/.arc/compose/ :\n${composesLines}`;
+  } else {
+    header = `⚠️  Composes existants détectés dans ~/.arc/compose/ :\n${composesLines}`;
+  }
+  note(header);
+
+  const choice = await select({
+    message: "Que souhaitez-vous faire ?",
+    options: [
+      { value: "cancel", label: "Annuler (recommandé sauf si vous savez ce que vous faites)" },
+      { value: "proceed", label: "Réécrire les composes et relancer Ansible" },
+    ],
+  });
+  if (typeof choice === "symbol") return "cancel";
+  return choice === "proceed" ? "proceed" : "cancel";
+}
+
+function formatHumanDate(d: Date): string {
+  // YYYY-MM-DD HH:MM (UTC) — keep deterministic, no locale surprises.
+  return `${d.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 0) return "moins d'une minute";
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "moins d'une minute";
+  if (minutes < 60) return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} heure${hours > 1 ? "s" : ""}`;
+  const days = Math.floor(hours / 24);
+  return `${days} jour${days > 1 ? "s" : ""}`;
 }
