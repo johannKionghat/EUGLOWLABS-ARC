@@ -47,7 +47,7 @@ arc deploy --dry-run
 ```
 arc help                       # Banner + command list
 arc init                       # Interactive config generator → arc.config.yml
-arc setup                      # One-shot install on the current host (Phase 1.5)
+arc setup [--apply] [--force]  # Configure ~/.arc/arc.config.yml; with --apply, generate composes + run Ansible
 arc deploy [--dry-run]         # Render compose files + apply on the host
 arc status                     # docker compose ps parsed
 arc logs <service>             # tail logs
