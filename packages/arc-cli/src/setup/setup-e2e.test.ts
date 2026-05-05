@@ -31,6 +31,8 @@ import { stringify as yamlStringify } from "yaml";
 // ---- mock @clack/prompts (cf. en-tête) ------------------------------------
 
 const promptQueue: unknown[] = [];
+const noteCalls: string[] = [];
+const cancelCalls: string[] = [];
 
 function nextPrompt(label: string): unknown {
   if (promptQueue.length === 0) {
@@ -42,8 +44,12 @@ function nextPrompt(label: string): unknown {
 vi.mock("@clack/prompts", () => ({
   intro: vi.fn(),
   outro: vi.fn(),
-  cancel: vi.fn(),
-  note: vi.fn(),
+  cancel: vi.fn((msg: string) => {
+    cancelCalls.push(msg);
+  }),
+  note: vi.fn((msg: string) => {
+    noteCalls.push(msg);
+  }),
   isCancel: (v: unknown) => v === Symbol.for("clack.cancel"),
   text: vi.fn(async () => nextPrompt("text")),
   password: vi.fn(async () => nextPrompt("password")),
@@ -51,8 +57,59 @@ vi.mock("@clack/prompts", () => ({
   confirm: vi.fn(async () => nextPrompt("confirm")),
 }));
 
+// ---- mock ../exec/index.js (sub-task 6) ---------------------------------
+//
+// applyStack instantiates `new HostAdapter()` to talk to the host
+// shell. For E2E we replace it with a fake adapter so `ansible-playbook`
+// is never spawned for real. `vi.hoisted` is required because vi.mock
+// factories are hoisted above any top-level `class` / `let` — using
+// hoisted state lets the factory close over a mutable handler that
+// individual tests reprogram via `programAnsibleOk()` etc.
+
+const { execHandlerRef, FakeHostAdapter } = vi.hoisted(() => {
+  const ref: {
+    handler: (
+      cmd: string,
+      opts?: unknown,
+    ) => Promise<{
+      stdout: string;
+      stderr: string;
+      exitCode: number;
+      durationMs: number;
+    }>;
+  } = {
+    handler: async () => ({ stdout: "", stderr: "", exitCode: 0, durationMs: 0 }),
+  };
+  class FakeHostAdapter {
+    async exec(cmd: string, opts?: unknown) {
+      return await ref.handler(cmd, opts);
+    }
+    async copyFile(): Promise<void> {}
+    async readFile(): Promise<string> {
+      return "";
+    }
+    async fileExists(): Promise<boolean> {
+      return false;
+    }
+    describe(): string {
+      return "fake-host";
+    }
+  }
+  return { execHandlerRef: ref, FakeHostAdapter };
+});
+
+vi.mock("../exec/index.js", async () => {
+  const actual = await vi.importActual<typeof import("../exec/index.js")>("../exec/index.js");
+  return {
+    ...actual,
+    HostAdapter: FakeHostAdapter,
+  };
+});
+
 // Subject under test imported AFTER mock declarations.
 import { runFromArgs } from "../cli.js";
+import { ANSIBLE_NOT_INSTALLED_MESSAGE, COMPOSE_FILES } from "./apply.js";
+import { APPLY_SUCCESS_TEMPLATE } from "./orchestrate.js";
 
 // ---- helpers --------------------------------------------------------------
 
@@ -81,18 +138,52 @@ interface RunResult {
   stderr: string;
 }
 
-async function runSetupCli(): Promise<RunResult> {
+async function runSetupCli(extraArgs: readonly string[] = []): Promise<RunResult> {
   const stdout = new PassThrough();
   const stderr = new PassThrough();
   const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
   stdout.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
   stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
-  const exitCode = await runFromArgs(["setup"], { stdout, stderr });
+  const exitCode = await runFromArgs(["setup", ...extraArgs], { stdout, stderr });
   return {
     exitCode,
     stdout: Buffer.concat(stdoutChunks).toString("utf8"),
     stderr: Buffer.concat(stderrChunks).toString("utf8"),
+  };
+}
+
+const ANSIBLE_VERSION_OK = {
+  stdout: "ansible-playbook [core 2.16.3]\n  config file = None\n",
+  stderr: "",
+  exitCode: 0,
+  durationMs: 0,
+};
+
+/** Programmable Ansible-aware exec router. Default = success on any cmd. */
+function programAnsibleOk(): void {
+  execHandlerRef.handler = async (cmd) => {
+    if (cmd === "ansible-playbook --version") return ANSIBLE_VERSION_OK;
+    if (cmd.startsWith("ansible-playbook ")) {
+      return { stdout: "stub OK", stderr: "", exitCode: 0, durationMs: 0 };
+    }
+    return { stdout: "", stderr: "", exitCode: 0, durationMs: 0 };
+  };
+}
+
+function programAnsibleAbsent(): void {
+  execHandlerRef.handler = async (cmd) => {
+    if (cmd === "ansible-playbook --version") {
+      return {
+        stdout: "",
+        stderr: "/bin/sh: ansible-playbook: command not found",
+        exitCode: 127,
+        durationMs: 0,
+      };
+    }
+    // Any subsequent ansible-playbook invocation must NOT happen — the
+    // version probe should have aborted the run with EXIT_ENV_ERROR.
+    throw new Error(`unexpected exec(${cmd}) after ansible-playbook absent`);
   };
 }
 
@@ -111,6 +202,15 @@ describe("arc setup — E2E through CLI factory", () => {
     arcDir = join(tmpHome, ".arc");
     configFile = join(arcDir, "arc.config.yml");
     promptQueue.length = 0;
+    noteCalls.length = 0;
+    cancelCalls.length = 0;
+    // Default exec : success on every command (incl. unmocked ansible).
+    execHandlerRef.handler = async () => ({
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 0,
+    });
   });
 
   afterEach(async () => {
@@ -234,5 +334,95 @@ describe("arc setup — E2E through CLI factory", () => {
     expect(r.exitCode).toBe(2);
     const after = await readFile(arcDir, "utf8");
     expect(after).toBe(original);
+  });
+
+  // -------------------------------------------------------------------------
+  // INSTALL-002 sub-task 6 — `arc setup --apply` end-to-end through the CLI
+  // factory. Ansible is mocked at the HostAdapter level (cf. en-tête).
+  // -------------------------------------------------------------------------
+
+  it("E2E-9 — apply + config absente → composes générés, state.json créé, exit 0", async () => {
+    programAnsibleOk();
+    promptQueue.push(fresh.project, fresh.domain, fresh.email, fresh.dnsZone, fresh.dnsToken);
+
+    const r = await runSetupCli(["--apply"]);
+    expect(r.exitCode).toBe(0);
+
+    // Config persisted.
+    const written = await readFile(configFile, "utf8");
+    expect(written).toContain(`project: ${fresh.project}`);
+
+    // Composes generated under ~/.arc/compose/ with the real names.
+    const composeDir = join(arcDir, "compose");
+    const composes = (await readdir(composeDir)).filter((f) => f.endsWith(".yml")).sort();
+    expect(composes).toEqual([...COMPOSE_FILES].sort());
+
+    // state.json committed with a valid schema shape.
+    const stateRaw = await readFile(join(arcDir, "state.json"), "utf8");
+    const state = JSON.parse(stateRaw);
+    expect(state.schema_version).toBe(1);
+    expect(typeof state.last_apply).toBe("string");
+    expect(new Date(state.last_apply).toISOString()).toBe(state.last_apply); // ISO 8601
+    expect(state.compose_files).toEqual([...COMPOSE_FILES]);
+    expect(state.ansible_version).toBe("2.16.3");
+    expect(state.playbook_run_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+
+    // Literal success message surfaced via clack note().
+    const successShown = noteCalls.some((m) => m.includes("✓ Stack ARC appliquée avec succès."));
+    expect(successShown).toBe(true);
+    expect(noteCalls.some((m) => m.includes("Composes générés dans ~/.arc/compose/."))).toBe(true);
+    expect(noteCalls.some((m) => m.includes("Étapes suivantes"))).toBe(true);
+    // Run id substituted into the template.
+    expect(noteCalls.some((m) => m.includes(state.playbook_run_id))).toBe(true);
+  });
+
+  it("E2E-10 — apply + config valide + Réutiliser → config inchangée, composes + state, exit 0", async () => {
+    await mkdir(arcDir, { recursive: true });
+    const yaml = yamlStringify(validConfig);
+    await writeFile(configFile, yaml, "utf8");
+    programAnsibleOk();
+    promptQueue.push("reuse");
+
+    const r = await runSetupCli(["--apply"]);
+    expect(r.exitCode).toBe(0);
+
+    const after = await readFile(configFile, "utf8");
+    expect(after).toBe(yaml); // byte-identical, no rewrite.
+
+    const composeDir = join(arcDir, "compose");
+    const composes = (await readdir(composeDir)).filter((f) => f.endsWith(".yml")).sort();
+    expect(composes).toEqual([...COMPOSE_FILES].sort());
+
+    await readFile(join(arcDir, "state.json"), "utf8"); // throws if missing.
+    expect(noteCalls.some((m) => m.includes(APPLY_SUCCESS_TEMPLATE.split("\n")[0] ?? ""))).toBe(
+      true,
+    );
+  });
+
+  it("E2E-11 — apply sans Ansible installé → exit 2, message littéral, config écrite, no composes/state", async () => {
+    programAnsibleAbsent();
+    promptQueue.push(fresh.project, fresh.domain, fresh.email, fresh.dnsZone, fresh.dnsToken);
+
+    const r = await runSetupCli(["--apply"]);
+    expect(r.exitCode).toBe(2);
+
+    // Config IS written (config phase happens before Ansible detection — no data loss).
+    const written = await readFile(configFile, "utf8");
+    expect(written).toContain(`project: ${fresh.project}`);
+
+    // No compose dir, no state.json.
+    const arcEntries = await readdir(arcDir);
+    expect(arcEntries.includes("compose")).toBe(false);
+    expect(arcEntries.includes("state.json")).toBe(false);
+
+    // Exact ANSIBLE_NOT_INSTALLED_MESSAGE surfaced via clack cancel().
+    const ansibleMsgShown = cancelCalls.some((m) => m === ANSIBLE_NOT_INSTALLED_MESSAGE);
+    expect(ansibleMsgShown).toBe(true);
+
+    // No stack trace leaked through stderr (persona-B contract).
+    expect(r.stderr).not.toContain("at ");
+    expect(r.stderr).not.toContain("Error:");
   });
 });
