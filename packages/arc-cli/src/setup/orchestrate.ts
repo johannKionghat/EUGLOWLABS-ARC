@@ -4,19 +4,47 @@ import { dirname } from "node:path";
 import { cancel, intro, isCancel, note, outro, select, text } from "@clack/prompts";
 import type { ArcConfig } from "@euglowlabs/arc-shared";
 
+import { HostAdapter } from "../exec/index.js";
 import { promptForConfig } from "../init/prompts.js";
 import { writeArcConfig } from "../init/write.js";
 import { arcConfigPath, arcUserDir } from "../paths.js";
+import { applyStack } from "./apply.js";
 import { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK } from "./exit-codes.js";
 import { type DetectionResult, detectExistingConfig } from "./idempotence.js";
 import { isSensitiveField, maskSensitiveValue } from "./sensitive.js";
+import { loadStateFile } from "./state.js";
 
 // Re-exported for backwards compatibility with existing callers.
 export { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK };
 
+/**
+ * Banner shown when `--force` is passed without `--apply`. INSTALL-002
+ * Décision 2 : `--force` is informative-only in that case (it still
+ * fulfills its INSTALL-001 contract of skipping the "Réutiliser" menu),
+ * but the user is warned that the apply-side effect is inactive.
+ */
+export const FORCE_WITHOUT_APPLY_NOTICE = "⚠️  --force has no effect without --apply";
+
+/**
+ * Literal success message printed by `runSetup` when `applyStack`
+ * returns 0 — INSTALL-002 Décision 3. `<playbook_run_id>` is substituted
+ * with the value committed to `~/.arc/state.json` by `applyStack`.
+ */
+export const APPLY_SUCCESS_TEMPLATE = `✓ Stack ARC appliquée avec succès.
+
+Composes générés dans ~/.arc/compose/.
+Application Ansible : <playbook_run_id>.
+
+Étapes suivantes :
+  - Vérifier l'état : arc status
+  - Voir les logs : arc logs
+  - Migrer un projet : voir docs/migration-guide.md`;
+
 export interface SetupOptions {
-  /** Skip the "Réécrire" confirmation menu when a valid config exists ; overwrite directly. */
+  /** Skip the "Réutiliser/Réécrire/Annuler" menu when a valid config exists ; overwrite directly. */
   force?: boolean;
+  /** When true, run `applyStack` after the config is written/validated. */
+  apply?: boolean;
 }
 
 /**
@@ -33,17 +61,23 @@ export interface SetupOptions {
 export async function runSetup(opts: SetupOptions = {}): Promise<number> {
   intro("EuglowLabs ARC — setup");
 
+  // INSTALL-002 Décision 2 : `--force` without `--apply` is harmless
+  // but informative. Surface the notice once, before any FS work.
+  if (opts.force === true && opts.apply !== true) {
+    note(FORCE_WITHOUT_APPLY_NOTICE);
+  }
+
   const detection = await detectExistingConfig();
 
   switch (detection.status) {
     case "absent":
-      return await handleAbsent();
+      return await handleAbsent(opts);
     case "valid":
       return await handleValid(detection.config, opts);
     case "corrupted":
-      return await handleCorrupted(detection);
+      return await handleCorrupted(detection, opts);
     case "schema_mismatch":
-      return await handleSchemaMismatch(detection);
+      return await handleSchemaMismatch(detection, opts);
     case "permission_denied":
       return handlePermissionDenied(detection);
     case "user_dir_invalid":
@@ -51,7 +85,7 @@ export async function runSetup(opts: SetupOptions = {}): Promise<number> {
   }
 }
 
-async function handleAbsent(): Promise<number> {
+async function handleAbsent(opts: SetupOptions): Promise<number> {
   const draft = await promptForConfig();
   if (draft === null) {
     cancel("setup cancelled");
@@ -59,14 +93,12 @@ async function handleAbsent(): Promise<number> {
   }
   await ensureUserDir();
   await writeArcConfig(arcConfigPath(), draft, { force: false });
-  outro(`Configuration written to ${arcConfigPath()}.`);
-  noteApplyHint();
-  return EXIT_OK;
+  return await finalizeSuccess(opts);
 }
 
 async function handleValid(config: ArcConfig, opts: SetupOptions): Promise<number> {
   if (opts.force === true) {
-    return await reprompt(config, { reason: "force" });
+    return await reprompt(config, { reason: "force" }, opts);
   }
 
   note(`✓ Configuration ARC existante détectée à ${arcConfigPath()}.`);
@@ -85,18 +117,18 @@ async function handleValid(config: ArcConfig, opts: SetupOptions): Promise<numbe
   }
 
   if (choice === "reuse") {
-    outro("✓ Configuration validée. Lancez `arc setup --apply` pour appliquer la stack.");
-    return EXIT_OK;
+    return await finalizeSuccess(opts);
   }
   if (choice === "cancel") {
     cancel("setup cancelled");
     return EXIT_CANCELLED;
   }
-  return await reprompt(config, { reason: "rewrite" });
+  return await reprompt(config, { reason: "rewrite" }, opts);
 }
 
 async function handleCorrupted(
   detection: DetectionResult & { status: "corrupted" },
+  opts: SetupOptions,
 ): Promise<number> {
   note(
     `✗ Configuration corrompue : ${arcConfigPath()}\n\nErreur YAML :\n  ${detection.error.message}`,
@@ -116,11 +148,12 @@ async function handleCorrupted(
     return EXIT_CANCELLED;
   }
   await backupCurrentConfig();
-  return await handleAbsent();
+  return await handleAbsent(opts);
 }
 
 async function handleSchemaMismatch(
   detection: DetectionResult & { status: "schema_mismatch" },
+  opts: SetupOptions,
 ): Promise<number> {
   const issues = detection.errors.issues
     .map((issue) => `  - ${issue.path.join(".") || "<root>"} : ${issue.message}`)
@@ -148,9 +181,9 @@ async function handleSchemaMismatch(
   }
   if (choice === "backup") {
     await backupCurrentConfig();
-    return await handleAbsent();
+    return await handleAbsent(opts);
   }
-  return await reprompt(detection.raw as Partial<ArcConfig>, { reason: "schema-correction" });
+  return await reprompt(detection.raw as Partial<ArcConfig>, { reason: "schema-correction" }, opts);
 }
 
 function handlePermissionDenied(
@@ -173,7 +206,11 @@ interface RepromptOptions {
   reason: "rewrite" | "schema-correction" | "force";
 }
 
-async function reprompt(defaults: Partial<ArcConfig>, _opts: RepromptOptions): Promise<number> {
+async function reprompt(
+  defaults: Partial<ArcConfig>,
+  _opts: RepromptOptions,
+  setupOpts: SetupOptions,
+): Promise<number> {
   const draft = await promptForConfigWithDefaults(defaults);
   if (draft === null) {
     cancel("setup cancelled");
@@ -181,9 +218,7 @@ async function reprompt(defaults: Partial<ArcConfig>, _opts: RepromptOptions): P
   }
   await ensureUserDir();
   await writeArcConfig(arcConfigPath(), draft, { force: true });
-  outro(`Configuration written to ${arcConfigPath()}.`);
-  noteApplyHint();
-  return EXIT_OK;
+  return await finalizeSuccess(setupOpts);
 }
 
 /**
@@ -283,9 +318,46 @@ async function backupCurrentConfig(): Promise<void> {
   await rename(src, dst);
 }
 
+/**
+ * Convergence point for every successful path through `runSetup`.
+ *
+ * Without `--apply` : print the canonical INSTALL-001 hint and return
+ * EXIT_OK. The wording is frozen — see Décision 4 in INSTALL-002.
+ *
+ * With `--apply` : re-detect the on-disk config (so `applyStack` always
+ * sees the validated, persisted shape), then delegate to `applyStack`
+ * with `force` propagated. On EXIT_OK, print the literal Décision 3
+ * success message with the run id read from `state.json`.
+ */
+async function finalizeSuccess(opts: SetupOptions): Promise<number> {
+  if (opts.apply !== true) {
+    outro(`Configuration written to ${arcConfigPath()}.`);
+    noteApplyHint();
+    return EXIT_OK;
+  }
+
+  const detection = await detectExistingConfig();
+  if (detection.status !== "valid") {
+    cancel(
+      `✗ Internal error : post-write detection returned "${detection.status}". Cannot apply stack.`,
+    );
+    return EXIT_ENV_ERROR;
+  }
+
+  const adapter = new HostAdapter();
+  const code = await applyStack(detection.config, adapter, { force: opts.force === true });
+  if (code !== EXIT_OK) {
+    return code;
+  }
+
+  // applyStack writes state.json on success — read back the run id for
+  // the literal user message (Décision 3).
+  const state = await loadStateFile();
+  const runId = state.status === "ok" ? state.state.playbook_run_id : "(state.json absent)";
+  note(APPLY_SUCCESS_TEMPLATE.replace("<playbook_run_id>", runId));
+  return EXIT_OK;
+}
+
 function noteApplyHint(): void {
-  note(
-    "✓ Configuration validée. Lancez `arc setup --apply` pour appliquer la stack.\n" +
-      "  (Le flag --apply sera livré par INSTALL-002.)",
-  );
+  note("✓ Configuration validée. Lancez `arc setup --apply` pour appliquer la stack.");
 }

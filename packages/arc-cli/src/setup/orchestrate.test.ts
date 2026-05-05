@@ -43,9 +43,42 @@ vi.mock("./idempotence.js", () => ({
   detectExistingConfig: () => detectionMock(),
 }));
 
+// ---- mock: ./apply.js (sub-task 5) ---------------------------------------
+//
+// We mock applyStack so orchestrate tests stay focused on the wiring
+// (which path leads to apply, with which options) ; applyStack itself
+// is tested in isolation in apply.test.ts (sub-task 4).
+
+const applyStackMock =
+  vi.fn<(cfg: unknown, adapter: unknown, opts?: { force?: boolean }) => Promise<number>>();
+
+vi.mock("./apply.js", () => ({
+  applyStack: (cfg: unknown, adapter: unknown, opts?: { force?: boolean }) =>
+    applyStackMock(cfg, adapter, opts),
+}));
+
+// ---- mock: ./state.js ----------------------------------------------------
+//
+// orchestrate reads state.json after applyStack returns 0 to surface
+// the playbook_run_id in the success message. We feed a stub state.
+
+const loadStateFileMock = vi.fn();
+
+vi.mock("./state.js", () => ({
+  loadStateFile: () => loadStateFileMock(),
+  STATE_SCHEMA_VERSION: 1,
+}));
+
 // ---- subject under test (imported AFTER mocks) ----------------------------
 
-import { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK, runSetup } from "./orchestrate.js";
+import {
+  APPLY_SUCCESS_TEMPLATE,
+  EXIT_CANCELLED,
+  EXIT_ENV_ERROR,
+  EXIT_OK,
+  FORCE_WITHOUT_APPLY_NOTICE,
+  runSetup,
+} from "./orchestrate.js";
 
 // ---- shared fixtures ------------------------------------------------------
 
@@ -78,6 +111,8 @@ describe("runSetup", () => {
     process.env.HOME = tmpHome;
     promptQueue.length = 0;
     detectionMock.mockReset();
+    applyStackMock.mockReset();
+    loadStateFileMock.mockReset();
   });
 
   afterEach(async () => {
@@ -237,5 +272,124 @@ describe("runSetup", () => {
 
     const code = await runSetup();
     expect(code).toBe(EXIT_ENV_ERROR);
+  });
+
+  // -------------------------------------------------------------------------
+  // INSTALL-002 sub-task 5 — --apply branching
+  // -------------------------------------------------------------------------
+
+  function programApplyOk(): void {
+    applyStackMock.mockResolvedValue(EXIT_OK);
+    loadStateFileMock.mockResolvedValue({
+      status: "ok",
+      state: {
+        schema_version: 1,
+        last_apply: "2026-05-04T14:32:18.000Z",
+        compose_files: [
+          "docker-compose.agents.yml",
+          "docker-compose.prod.yml",
+          "docker-compose.sandbox.yml",
+        ],
+        ansible_version: "2.16.3",
+        playbook_run_id: "deadbeef-1234-4567-89ab-cdef01234567",
+      },
+    });
+  }
+
+  it("apply + absent → prompts, writes config, applyStack called once, EXIT_OK", async () => {
+    detectionMock
+      .mockResolvedValueOnce({ status: "absent" })
+      // Second call after the write : finalizeSuccess re-detects to get
+      // a validated ArcConfig before forwarding to applyStack.
+      .mockResolvedValueOnce({ status: "valid", config: validConfig });
+    programApplyOk();
+    promptQueue.push(
+      promptDraft.project,
+      promptDraft.domain,
+      promptDraft.email,
+      promptDraft.dnsZone,
+      promptDraft.dnsToken,
+    );
+
+    const code = await runSetup({ apply: true });
+    expect(code).toBe(EXIT_OK);
+    expect(applyStackMock).toHaveBeenCalledTimes(1);
+    expect(applyStackMock.mock.calls[0]?.[2]).toEqual({ force: false });
+  });
+
+  it("apply + valid + 'reuse' → applyStack called directly without re-prompts", async () => {
+    detectionMock.mockResolvedValue({ status: "valid", config: validConfig });
+    programApplyOk();
+    promptQueue.push("reuse");
+
+    const code = await runSetup({ apply: true });
+    expect(code).toBe(EXIT_OK);
+    expect(applyStackMock).toHaveBeenCalledTimes(1);
+    expect(applyStackMock.mock.calls[0]?.[0]).toEqual(validConfig);
+    // No re-prompt entries consumed beyond "reuse".
+    expect(promptQueue.length).toBe(0);
+  });
+
+  it("apply + valid + 'cancel' → applyStack NOT called, EXIT_CANCELLED", async () => {
+    detectionMock.mockResolvedValue({ status: "valid", config: validConfig });
+    promptQueue.push("cancel");
+
+    const code = await runSetup({ apply: true });
+    expect(code).toBe(EXIT_CANCELLED);
+    expect(applyStackMock).not.toHaveBeenCalled();
+  });
+
+  it("apply + force → applyStack receives { force: true }, no Réutiliser menu", async () => {
+    detectionMock
+      // First detection sees the existing valid config ; --force skips the menu.
+      .mockResolvedValueOnce({ status: "valid", config: validConfig })
+      // After the rewrite, finalizeSuccess re-detects to get the persisted shape.
+      .mockResolvedValueOnce({ status: "valid", config: validConfig });
+    programApplyOk();
+    // --force triggers the rewrite branch → re-prompts queue.
+    promptQueue.push(
+      promptDraft.project,
+      promptDraft.domain,
+      promptDraft.email,
+      promptDraft.dnsZone,
+      promptDraft.dnsToken,
+    );
+
+    const code = await runSetup({ apply: true, force: true });
+    expect(code).toBe(EXIT_OK);
+    expect(applyStackMock).toHaveBeenCalledTimes(1);
+    expect(applyStackMock.mock.calls[0]?.[2]).toEqual({ force: true });
+  });
+
+  it("force without apply → emits FORCE_WITHOUT_APPLY_NOTICE but still honours INSTALL-001 force", async () => {
+    const { note } = await import("@clack/prompts");
+    const noteSpy = vi.mocked(note);
+    noteSpy.mockClear();
+
+    detectionMock.mockResolvedValue({ status: "valid", config: validConfig });
+    promptQueue.push(
+      promptDraft.project,
+      promptDraft.domain,
+      promptDraft.email,
+      promptDraft.dnsZone,
+      promptDraft.dnsToken,
+    );
+
+    const code = await runSetup({ force: true });
+    expect(code).toBe(EXIT_OK);
+    expect(applyStackMock).not.toHaveBeenCalled();
+    const noticeShown = noteSpy.mock.calls.some(
+      (call) => typeof call[0] === "string" && call[0].includes(FORCE_WITHOUT_APPLY_NOTICE),
+    );
+    expect(noticeShown).toBe(true);
+  });
+
+  it("APPLY_SUCCESS_TEMPLATE — literal contract (Décision 3)", () => {
+    expect(APPLY_SUCCESS_TEMPLATE).toContain("✓ Stack ARC appliquée avec succès.");
+    expect(APPLY_SUCCESS_TEMPLATE).toContain("Composes générés dans ~/.arc/compose/.");
+    expect(APPLY_SUCCESS_TEMPLATE).toContain("Application Ansible : <playbook_run_id>.");
+    expect(APPLY_SUCCESS_TEMPLATE).toContain("Vérifier l'état : arc status");
+    expect(APPLY_SUCCESS_TEMPLATE).toContain("Voir les logs : arc logs");
+    expect(APPLY_SUCCESS_TEMPLATE).toContain("Migrer un projet : voir docs/migration-guide.md");
   });
 });
