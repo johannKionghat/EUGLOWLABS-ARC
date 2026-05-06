@@ -33,7 +33,7 @@ Ces rôles préparent la machine cible pour `coolify` / `ai-stack` (ANSIBLE-001b
 
 ## Critères d'acceptation
 
-- [ ] Arborescence créée sous `packages/arc-cli/playbooks/roles/` :
+- [x] Arborescence créée sous `packages/arc-cli/playbooks/roles/` :
   ```
   roles/
   ├── hardening/
@@ -45,30 +45,30 @@ Ces rôles préparent la machine cible pour `coolify` / `ai-stack` (ANSIBLE-001b
       ├── handlers/main.yml
       └── defaults/main.yml
   ```
-- [ ] **Rôle `hardening`** :
-  - [ ] UFW installé (`apt`), default deny incoming / allow outgoing, autorise OpenSSH + 80 + 443, activé
-  - [ ] fail2ban installé, jail `sshd` enabled, service démarré + enabled
-  - [ ] `/etc/ssh/sshd_config` : `PasswordAuthentication no` et `PermitRootLogin prohibit-password` (via `ansible.builtin.lineinfile` ou drop-in `/etc/ssh/sshd_config.d/99-arc.conf`), reload via handler
-  - [ ] `unattended-upgrades` installé + activé pour les mises à jour de sécurité
-  - [ ] Idempotent : second run = `changed=0`
-- [ ] **Rôle `docker`** :
-  - [ ] Repo apt officiel Docker ajouté (clé GPG + sources.list.d) pour Ubuntu/Debian
-  - [ ] Paquets installés : `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, `docker-compose-plugin`
-  - [ ] Service `docker` démarré + enabled
-  - [ ] User cible (var `arc_user`, défaut `ansible_user_id`) ajouté au groupe `docker`
-  - [ ] Idempotent : second run = `changed=0`
-- [ ] **`playbooks/setup.yml`** mis à jour :
-  - [ ] Plus de tâche `debug` no-op du stub
-  - [ ] `hosts: localhost`, `connection: local`, `become: yes` (privilégié) — ou `become` ponctuel par tâche si plus propre
-  - [ ] `pre_tasks` : `ansible.builtin.assert` que la distro est Ubuntu/Debian (ou skip avec message clair)
-  - [ ] `roles:` invoque `hardening` puis `docker`
-  - [ ] Le commentaire d'en-tête est mis à jour (plus « STUB no-op » — devient « Phase 1.5 — partielle, ai-stack/coolify/sandbox/backups à venir »)
-- [ ] **Tests** :
-  - [ ] `ansible-playbook --syntax-check packages/arc-cli/playbooks/setup.yml` passe (commande documentée dans le scratchpad, exécutée à blanc)
-  - [ ] `ansible-lint packages/arc-cli/playbooks/` ne remonte aucun warning bloquant (si l'outil est dispo ; sinon noté en gap)
-  - [ ] Suite Vitest arc-cli : **toujours 140 verts** (zéro régression, zéro test ajouté côté TS — ce périmètre n'introduit pas de logique TypeScript)
-  - [ ] **Smoke test humain** dans une VM jetable ou WSL2 fraîche : `arc setup --apply` exécute le playbook, `ufw status` et `fail2ban-client status sshd` rendent le résultat attendu, `docker version` répond, second run idempotent
-- [ ] Lint + typecheck globaux verts (`pnpm lint` + `pnpm typecheck`)
+- [x] **Rôle `hardening`** :
+  - [x] UFW installé (`apt`), default deny incoming / allow outgoing, autorise OpenSSH + 80 + 443, activé
+  - [x] fail2ban installé, jail `sshd` enabled, service démarré + enabled
+  - [x] `/etc/ssh/sshd_config` : `PasswordAuthentication no` et `PermitRootLogin prohibit-password` (via `ansible.builtin.lineinfile` ou drop-in `/etc/ssh/sshd_config.d/99-arc.conf`), reload via handler
+  - [x] `unattended-upgrades` installé + activé pour les mises à jour de sécurité
+  - [ ] Idempotent : second run = `changed=0` _(reporté à E2E-001)_
+- [x] **Rôle `docker`** :
+  - [x] Repo apt officiel Docker ajouté (clé GPG + sources.list.d) pour Ubuntu/Debian
+  - [x] Paquets installés : `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, `docker-compose-plugin`
+  - [x] Service `docker` démarré + enabled
+  - [x] User cible (var `arc_user`, défaut `ansible_user_id`) ajouté au groupe `docker`
+  - [ ] Idempotent : second run = `changed=0` _(reporté à E2E-001)_
+- [x] **`playbooks/setup.yml`** mis à jour :
+  - [x] Plus de tâche `debug` no-op du stub
+  - [x] `hosts: localhost`, `connection: local`, `become: yes` (privilégié) — ou `become` ponctuel par tâche si plus propre
+  - [x] `pre_tasks` : `ansible.builtin.assert` que la distro est Ubuntu/Debian (ou skip avec message clair)
+  - [x] `roles:` invoque `hardening` puis `docker`
+  - [x] Le commentaire d'en-tête est mis à jour (plus « STUB no-op » — devient « Phase 1.5 — partielle, ai-stack/coolify/sandbox/backups à venir »)
+- [x] **Tests** :
+  - [x] `ansible-playbook --syntax-check packages/arc-cli/playbooks/setup.yml` passe (commande documentée dans le scratchpad, exécutée à blanc)
+  - [x] `ansible-lint packages/arc-cli/playbooks/` ne remonte aucun warning bloquant (0 violation, profile escaladé `min` → `production`)
+  - [x] Suite Vitest arc-cli : **144 verts** (mise à jour depuis 140 grâce au fix Linux `ComposeDirAccessError` en INSTALL-002 ; zéro régression sur ce périmètre, zéro test TS ajouté)
+  - [ ] **Smoke test humain** dans une VM jetable ou WSL2 fraîche : `arc setup --apply` exécute le playbook, `ufw status` et `fail2ban-client status sshd` rendent le résultat attendu, `docker version` répond, second run idempotent _(reporté à E2E-001 — design : validation runtime sur VPS jetable, pas en 001a)_
+- [x] Lint + typecheck globaux verts (`pnpm lint` + `pnpm typecheck`)
 
 ## Fichiers concernés (estimation : 8 fichiers, dont 7 nouveaux)
 
