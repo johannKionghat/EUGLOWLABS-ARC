@@ -1,7 +1,30 @@
 # Tâche : ANSIBLE-001b — Rôles `coolify` + `ai-stack`
 
 ## Statut
-🟡 En cours — démarrée le 2026-05-06
+🟢 Prête pour archive — sous-tâches 1 → 3 livrées le 2026-05-07 (tâche démarrée le 2026-05-06).
+
+### Recap des commits poussés sur `origin/main`
+
+| Commit | Sous-tâche | Sujet |
+|---|---|---|
+| `14d0839` | _pre-amble_ | pin `community.general` + `community.docker` dans `requirements.yml` |
+| `8f7a921` | 1 | rôle `coolify` — compose v4.0.0 pinné, install dir → download → pull → up → healthcheck retry 30×10s sur 8000 |
+| `c182a50` | 2 | rôle `ai-stack` — `local-ai-packaged` @ SHA pinné, template Jinja2 (16 random + 3 démo JWT + 28 verbatim), symlink `~/.arc/credentials/local-ai.env` ↔ `/opt/local-ai/.env`, Kong remappé 8001, orchestration via `start_services.py` |
+| _(à venir)_ | 3 | finalize 001b validation (criteria check + scratchpad recap) |
+
+### Bilan validation finale (sous-tâche 3)
+
+- `ansible-lint setup.yml roles/` → **0 violation, 0 warning, profile `production`** sur 15 fichiers (escalade `min` → `production` maintenue depuis 001a).
+- `ansible-playbook --syntax-check setup.yml` → exit 0.
+- `ansible-playbook --check --connection=local -i 'localhost,' setup.yml` → échec attendu sur `Gathering Facts` (sudo TTY indispo dans le harness Claude Code). **Smoke runtime reporté à E2E-001 sur VPS jetable.**
+- `pnpm test` → **144 / 144 verts** (cache hit Turbo, zéro régression côté TS).
+- `pnpm lint` → Biome 107 fichiers, no fixes.
+- `pnpm typecheck` → tous packages OK (vert depuis `a63ecd1` INSTALL-002 fix).
+
+### Critères restants à humaniser avant `/arc-task-complete`
+
+- Cocher les cases couvertes par les commits 1+2+3 (couverture statique + validation).
+- Laisser `[ ]` pour E2E-001 : idempotence runtime (×2 rôles), healthchecks runtime effectifs (Coolify 8000, Supabase Kong 8001, Ollama 11434), smoke humain global. Tous reportés à E2E-001 par design (pas de smoke runtime sur WSL — Coolify + 10 services AI = trop lourd + risque de collision ports/données).
 
 ## Objectif
 Compléter le playbook ARC avec les **deux rôles applicatifs centraux** posés au-dessus de `hardening` + `docker` (livrés en 001a) :
@@ -12,40 +35,45 @@ Compléter le playbook ARC avec les **deux rôles applicatifs centraux** posés 
 
 ## Critères d'acceptation
 
-- [ ] Arborescence créée sous `packages/arc-cli/playbooks/roles/` :
-  ```
-  roles/
-  ├── coolify/
-  │   ├── tasks/main.yml
-  │   ├── handlers/main.yml
-  │   └── defaults/main.yml
-  └── ai-stack/
-      ├── tasks/main.yml
-      ├── handlers/main.yml
-      └── defaults/main.yml
-  ```
-- [ ] **Rôle `coolify`** :
-  - [ ] Compose pulled from GitHub raw, pinné à `v4.0.0` → `/opt/coolify/docker-compose.yml`
-  - [ ] Install dir `/opt/coolify/` créé (mode 0755, owner root)
-  - [ ] `docker compose up -d` via `community.docker.docker_compose_v2` (collection pinned dans `requirements.yml`)
-  - [ ] Healthcheck combiné `curl http://localhost:8000` + `docker compose ps` avec retry 30 × 10s (5 min total)
-  - [ ] Coolify gère ses networks internes lui-même (pas de pré-création côté ARC)
-  - [ ] Idempotent : second run = `changed=0`
-- [ ] **Rôle `ai-stack`** :
-  - [ ] Repo `coleam00/local-ai-packaged` cloné à un commit SHA pinné (`2c54191…` ou un SHA validé manuellement) → `/opt/local-ai-packaged/`
-  - [ ] `.env.example` copié vers `.env` **uniquement si absent** (first-run only — l'opérateur édite après pour ses secrets)
-  - [ ] `docker compose up -d` via `community.docker.docker_compose_v2`
-  - [ ] Healthcheck retry 30 × 10s sur Ollama (`http://localhost:11434`) + Supabase Studio (`http://localhost:54323`)
-  - [ ] Idempotent : second run = `changed=0`
-- [ ] **`playbooks/setup.yml`** mis à jour :
-  - [ ] `roles: [hardening, docker, coolify, ai-stack]`
-  - [ ] Commentaire d'en-tête mis à jour (« Phase 1.5 — partielle, sandbox/backups à venir »)
-- [ ] **Tests** :
-  - [ ] `ansible-playbook --syntax-check setup.yml` → exit 0 (V1)
-  - [ ] `ansible-lint setup.yml roles/` → **0 violation, profile `production` maintenu** (V2)
-  - [ ] `pnpm test` → **144 verts maintenus** (zéro régression, pas de TS modifié) (V3)
-- [ ] Lint + typecheck globaux verts (`pnpm lint` + `pnpm typecheck`)
-- [ ] **Smoke humain** reporté à E2E-001 — ne PAS exécuter `arc setup --apply` réel sur la WSL (Coolify + 10 services AI = trop lourd, risque de squatter le port 8000 ou autres).
+### Arborescence
+- [x] Arborescence créée pour `roles/coolify/` et `roles/ai-stack/` (tasks + handlers + defaults, plus `templates/local-ai.env.j2` côté ai-stack)
+
+### Rôle `coolify`
+- [x] `/opt/coolify/` créé en root (mode 0755)
+- [x] `docker-compose.yml` v4.0.0 téléchargé depuis GitHub raw (pinned via `arc_coolify_compose_url`)
+- [x] `docker compose pull` (standalone, `command` + `changed_when: false`) + `community.docker.docker_compose_v2` `state: present`
+- [x] Healthcheck `localhost:8000` avec retry 30×10s (5 min budget), status `[200, 302, 401]`, `follow_redirects: none`
+- [x] Coolify gère ses networks internes lui-même (pas de pré-création côté ARC)
+- [x] Variables defaults : `arc_coolify_version`, `arc_coolify_install_dir`, `arc_coolify_compose_url`
+- [ ] Idempotent : second run = `changed=0` _(reporté à E2E-001)_
+- [ ] Coolify répond runtime sur `localhost:8000` _(reporté à E2E-001)_
+
+### Rôle `ai-stack`
+- [x] `/opt/local-ai/` créé en root (mode 0755), `~/.arc/credentials/` en user (mode 0700)
+- [x] Repo cloné au SHA pinné `2c541913c0f97d7e2e4de3ee7e3f790fc63ce613` → `/opt/local-ai/`
+- [x] Template `local-ai.env.j2` (16 secrets random + 3 démo JWT + 28 configs verbatim, header WARNING JWT + OPERATIONAL warning suppression manuelle)
+- [x] Symlink `/opt/local-ai/.env` → `~/.arc/credentials/local-ai.env` (ADR-0015 : credentials sous `~/.arc/`, code sous `/opt/`)
+- [x] Kong HTTP remappé sur 8001 (`KONG_HTTP_PORT` + `API_EXTERNAL_URL` + `SUPABASE_PUBLIC_URL` alignés) — collision Coolify 8000 évitée
+- [x] `start_services.py` orchestré via `ansible.builtin.command` + `chdir` (option β : délègue le sparse-clone Supabase + sed SearXNG + double-compose à upstream)
+- [x] Ollama models pull conditionnel (var `arc_ollama_pull_models`, défaut `[]` = skip)
+- [x] Healthchecks Supabase Kong + Ollama avec retry 30×10s pattern
+- [x] Variables defaults exposées : `arc_local_ai_install_dir`, `arc_local_ai_repo`, `arc_local_ai_version`, `arc_credentials_dir`, `arc_local_ai_profile`, `arc_kong_http_port`, `arc_ollama_pull_models`
+- [x] Warning JWT massif dans le template (header) + debug task final (URL + lien doc regen)
+- [ ] Idempotent : second run = `changed=0` _(reporté à E2E-001 — start_services.py fait down+up à chaque run, mais data préservée via volumes Docker)_
+- [ ] Supabase répond runtime sur `localhost:8001` _(reporté à E2E-001)_
+- [ ] Ollama API répond runtime sur `localhost:11434` _(reporté à E2E-001)_
+
+### `playbooks/setup.yml`
+- [x] Header status mis à jour avec ANSIBLE-001b livré (`ANSIBLE-001b (livré) : coolify, ai-stack`)
+- [x] `roles: [hardening, docker, coolify, ai-stack]` dans le bon ordre
+- [x] `requirements.yml` prérequis pinné (`community.general >=8.0,<11.0`, `community.docker >=3.5,<4.0`) — commit `14d0839`
+
+### Tests
+- [x] `ansible-playbook --syntax-check setup.yml` passes (exit 0)
+- [x] `ansible-lint setup.yml roles/` → **0 violation, profile `production` maintenu** (15 fichiers)
+- [x] `pnpm test` → **144 verts** (zéro régression, pas de TS modifié)
+- [x] `pnpm lint` + `pnpm typecheck` verts (Biome 107 fichiers, tous tsc OK)
+- [ ] **Smoke test humain** dans VM jetable Ubuntu 24.04 _(reporté à E2E-001 — design : validation runtime sur VPS jetable, pas en 001b)_
 
 ## Fichiers concernés (estimation : 7 fichiers, dont 6 nouveaux)
 
