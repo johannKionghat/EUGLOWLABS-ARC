@@ -1,7 +1,28 @@
 # Tâche : ANSIBLE-001a — Skeleton `playbooks/roles/` + rôles `hardening` + `docker`
 
 ## Statut
-🟡 En cours — démarrée le 2026-05-05 (découpée d'ANSIBLE-001 ce même jour, règle CLAUDE.md « 1 PR < 2h »)
+🟢 Prête pour archive — sous-tâches 1 → 5 livrées le 2026-05-06 (tâche démarrée le 2026-05-05, découpée d'ANSIBLE-001 ce même jour, règle CLAUDE.md « 1 PR < 2h »).
+
+### Recap des commits poussés sur `origin/main`
+
+| Commit | Sous-tâche | Sujet |
+|---|---|---|
+| `b62ed47` | 1 | scaffold `roles/` tree + wire `setup.yml` to hardening + docker |
+| `7a2e0c3` | 2 | UFW rules — install → IPv6 → defaults → allow {{ `arc_ssh_port` }}/80/443 → enable (allow-before-enable strict) |
+| `7390a56` | 3 | fail2ban + SSH key-only + unattended-upgrades, safety check `authorized_keys`, `sshd -t` validate-before-flush |
+| `dc0cd93` | 4 | docker role — modern keyring, dynamic arch mapping, `append: true` group, post-install Compose v2 assert |
+| _(à venir)_ | 5 | finalize ansible-lint cleanup (16 fixes mécaniques + 1 noqa intentionnel) + scratchpad recap |
+
+### Bilan validation finale (sous-tâche 5)
+
+- `ansible-lint setup.yml roles/` → **0 violation, profile `production`** (escalade depuis `min`).
+- `ansible-playbook --syntax-check setup.yml` → exit 0.
+- `ansible-playbook --check --connection=local -i 'localhost,' setup.yml` → échec attendu sur `Gathering Facts` (sudo TTY indispo dans le harness Claude Code). **Smoke runtime reporté à E2E-001 sur VPS jetable.**
+- `pnpm test` → **144 / 144 verts** (zéro régression côté TS, ce périmètre n'a pas touché de code TypeScript).
+
+### Critères restants à humaniser avant `/arc-task-complete`
+
+- Cocher manuellement chaque case `[ ]` de la section « Critères d'acceptation » qui est désormais satisfaite (tous les points UFW / fail2ban / SSH / unattended-upgrades / docker / setup.yml sont OK ; le **smoke humain** reste à faire par l'utilisateur sur VM jetable Ubuntu 24.04 — c'est `arc setup --apply` + check `ufw status numbered`, `fail2ban-client status sshd`, `docker version`, `groups $USER`, idempotence sur 2e run). Cette case sera signée par l'utilisateur, pas par moi.
 
 ## Objectif
 Poser la fondation Ansible d'ARC (structure `roles/`, conventions, invocation depuis `setup.yml`) et livrer les **deux premiers rôles système** :

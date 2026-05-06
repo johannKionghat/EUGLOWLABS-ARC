@@ -21,7 +21,7 @@
       - ca-certificates
       - curl
     state: present
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   tags: [docker, install]
 
@@ -51,7 +51,7 @@
       {{ ansible_distribution_release }} stable
     filename: docker
     state: present
-    update_cache: yes
+    update_cache: true
   vars:
     # ansible_architecture is the kernel arch (x86_64 / aarch64). Docker apt repo
     # expects Debian arch names (amd64 / arm64). Map explicitly to avoid surprises.
@@ -70,7 +70,7 @@
       - docker-buildx-plugin
       - docker-compose-plugin
     state: present
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   tags: [docker, install]
 
@@ -78,7 +78,7 @@
   ansible.builtin.service:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
   tags: [docker, install]
 
 # ----------------------------------------------------------------------------
@@ -98,11 +98,11 @@
         arc setup --apply -- -e arc_user=alice
   tags: [docker, group]
 
-- name: "Add {{ arc_user }} to the docker group (append yes — preserves sudo, dialout, …)"
+- name: "Add user to the docker group with append (preserves sudo, dialout, …) — {{ arc_user }}"
   ansible.builtin.user:
     name: "{{ arc_user }}"
     groups: docker
-    append: yes
+    append: true
   tags: [docker, group]
 
 # ----------------------------------------------------------------------------

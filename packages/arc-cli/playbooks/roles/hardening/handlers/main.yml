@@ -2,18 +2,18 @@
 # Hardening role — handlers.
 # UFW reload added in sub-task 2. fail2ban + sshd handlers added in sub-task 3.
 
-- name: reload ufw
+- name: Reload ufw
   community.general.ufw:
     state: reloaded
   listen: reload ufw
 
-- name: restart fail2ban
+- name: Restart fail2ban
   ansible.builtin.service:
     name: fail2ban
     state: restarted
   listen: restart fail2ban
 
-- name: reload sshd
+- name: Reload sshd
   ansible.builtin.service:
     name: ssh
     state: reloaded

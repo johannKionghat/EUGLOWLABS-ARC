@@ -23,7 +23,7 @@
   ansible.builtin.apt:
     name: ufw
     state: present
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   tags: [hardening, ufw]
 
@@ -93,7 +93,7 @@
       - unattended-upgrades
       - apt-listchanges
     state: present
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   tags: [hardening, updates]
 
@@ -132,7 +132,7 @@
   ansible.builtin.apt:
     name: fail2ban
     state: present
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   tags: [hardening, fail2ban]
 
@@ -166,7 +166,7 @@
   ansible.builtin.service:
     name: fail2ban
     state: started
-    enabled: yes
+    enabled: true
   tags: [hardening, fail2ban]
 
 # ----------------------------------------------------------------------------
@@ -177,7 +177,7 @@
 # a broken config.
 # ----------------------------------------------------------------------------
 
-- name: SAFETY — stat {{ arc_user }}'s authorized_keys (lockout prevention)
+- name: SAFETY — stat authorized_keys for lockout prevention — {{ arc_user }}
   ansible.builtin.stat:
     path: "{{ '/root' if arc_user == 'root' else '/home/' + arc_user }}/.ssh/authorized_keys"
   register: arc_ssh_authkeys
@@ -229,7 +229,7 @@
   notify: reload sshd
   tags: [hardening, ssh]
 
-- name: Validate full sshd config via `sshd -t` (handler reload only fires if this passes)
+- name: Validate full sshd config via `sshd -t` (handler reload only fires if this passes)  # noqa: no-handler
   ansible.builtin.command: sshd -t
   changed_when: false
   when: arc_sshd_dropin is changed

@@ -18,8 +18,8 @@
 - name: ARC setup — single-machine install
   hosts: localhost
   connection: local
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   pre_tasks:
     - name: Assert Debian-family distribution
