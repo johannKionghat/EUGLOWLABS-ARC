@@ -84,7 +84,7 @@ export class AnsibleExecutionError extends Error {
  */
 export class ComposeDirAccessError extends Error {
   readonly path: string;
-  readonly cause: NodeJS.ErrnoException;
+  override readonly cause: NodeJS.ErrnoException;
   constructor(path: string, cause: NodeJS.ErrnoException) {
     super(`Cannot read ${path}: ${cause.message}`);
     this.name = "ComposeDirAccessError";
