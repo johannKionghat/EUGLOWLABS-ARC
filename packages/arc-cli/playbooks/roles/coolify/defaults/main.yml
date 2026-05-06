@@ -1,0 +1,16 @@
+---
+# Coolify role — default variables.
+#
+# Per ADR-0005, Coolify is a dependency, never a fork.
+# Deploy via Coolify's official docker-compose.yml pinned to a version tag
+# (no curl|sh installer, no vendor-in-repo).
+
+# Pinned Coolify version. Bump deliberately — verify the new compose file is
+# compatible with the role's expectations (volumes, networks, healthcheck).
+arc_coolify_version: "v4.0.0"
+
+# Install directory (root-scoped, ADR-0015 compliant — never under ~/.arc/).
+arc_coolify_install_dir: "/opt/coolify"
+
+# Source URL for the docker-compose.yml. Templated with the pinned version.
+arc_coolify_compose_url: "https://raw.githubusercontent.com/coollabsio/coolify/{{ arc_coolify_version }}/docker-compose.yml"

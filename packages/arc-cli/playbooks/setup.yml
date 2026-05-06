@@ -1,10 +1,12 @@
 ---
 # ARC setup playbook — Phase 1.5 (PARTIAL).
 #
-# Status: ANSIBLE-001a livre les rôles `hardening` + `docker`.
+# Status:
+#   ANSIBLE-001a (livré)              : `hardening`, `docker`
+#   ANSIBLE-001b sub-task 1 (livré)   : `coolify`
 # Rôles à venir :
-#   - 001b : `coolify`, `ai-stack`
-#   - 001c : `sandbox` (réseaux ADR-0008), `backups` (cron + rclone R2)
+#   - 001b sub-task 2 : `ai-stack`
+#   - 001c            : `sandbox` (réseaux ADR-0008), `backups` (cron + rclone R2)
 #
 # Run model (ADR-0012) : single-machine, executed in `localhost` by the user
 # running `arc setup --apply`. Privilege escalation is global to the play
@@ -47,3 +49,4 @@
   roles:
     - hardening
     - docker
+    - coolify

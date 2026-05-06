@@ -1,0 +1,62 @@
+---
+# Coolify role — task entry point.
+#
+# Policy (ANSIBLE-001b sub-task 1, ADR-0005) :
+#  - Install Coolify via the official docker-compose.yml pinned to {{ arc_coolify_version }}.
+#  - NO curl|sh installer (not reproducible). NO vendor-in-repo (maintenance burden).
+#  - Networks (`coolify`, `coolify-proxy`) are created by Coolify's own compose.
+#    The ARC networks (prod_net, ai_net, sandbox_net per ADR-0008) come in 001c.
+#  - Persistence under {{ arc_coolify_install_dir }}/data via the upstream compose.
+#  - Healthcheck retry 30 × 10s = 5 min budget to absorb Postgres init + migrations.
+
+- name: Ensure Coolify install directory exists
+  ansible.builtin.file:
+    path: "{{ arc_coolify_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [coolify, install]
+
+- name: Download Coolify docker-compose.yml (pinned to {{ arc_coolify_version }})
+  ansible.builtin.get_url:
+    url: "{{ arc_coolify_compose_url }}"
+    dest: "{{ arc_coolify_install_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [coolify, install]
+
+- name: Pull Coolify images (separate step to surface download errors clearly)
+  ansible.builtin.command:
+    cmd: docker compose pull
+    chdir: "{{ arc_coolify_install_dir }}"
+  changed_when: false
+  tags: [coolify, install]
+
+- name: Start Coolify services (docker compose up -d)
+  community.docker.docker_compose_v2:
+    project_src: "{{ arc_coolify_install_dir }}"
+    state: present
+  tags: [coolify, install]
+
+- name: Wait for Coolify HTTP endpoint (retry 30 × 10s = 5 min budget)
+  ansible.builtin.uri:
+    url: http://localhost:8000
+    status_code: [200, 302, 401]
+    follow_redirects: none
+    timeout: 5
+  register: arc_coolify_health
+  until: arc_coolify_health is succeeded
+  retries: 30
+  delay: 10
+  changed_when: false
+  tags: [coolify, healthcheck]
+
+- name: Display Coolify access URL
+  ansible.builtin.debug:
+    msg: >-
+      Coolify is up. Open http://<this-host>:8000 in your browser to finish setup
+      (or via SSH tunnel: `ssh -L 8000:localhost:8000 user@<this-host>`).
+      First run will prompt to create the root user.
+  tags: [coolify, healthcheck]

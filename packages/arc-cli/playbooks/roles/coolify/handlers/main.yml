@@ -1,0 +1,4 @@
+---
+# Coolify role — handlers.
+# Sub-task 1: no handler needed — community.docker.docker_compose_v2 reconciles
+# state declaratively when the compose file changes (recreates containers).
