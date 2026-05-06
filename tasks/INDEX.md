@@ -83,7 +83,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
   *(Mitigation obligatoire des P2 + P3 d'ADR-0012. Vérifié à blanc avant validation Chantier 1.)*
 - ✅ **INSTALL-001** — `arc setup` cœur orchestration (2026-05-04) : squelette commande, idempotence 6 cas, prompts → `~/.arc/arc.config.yml`, tests E2E via CLI factory (107 tests verts), smoke humain validé.
 - ✅ **INSTALL-002** — `arc setup` exécution stack (2026-05-04) : détection `ansible-playbook`, applyStack transactionnel + state.json, branchement `--apply`, 3 E2E + smoke humain. 140 tests verts.
-- ⬜ ANSIBLE-001a — Skeleton `playbooks/roles/` + rôles `hardening` (UFW + fail2ban + SSH key-only + unattended-upgrades) + `docker` (Engine + Compose v2 + groupe user) *(découpée d'ANSIBLE-001 le 2026-05-05 pour respecter règle 1 PR < 2h)*
+- ✅ ANSIBLE-001a — Skeleton `playbooks/roles/` + rôles `hardening` (UFW + fail2ban + SSH key-only + unattended-upgrades) + `docker` (Engine + Compose v2 + groupe user) (2026-05-06) *(découpée d'ANSIBLE-001 le 2026-05-05)*
 - ⬜ ANSIBLE-001b — Rôles `coolify` (install via script officiel, ADR-0005) + `ai-stack` (clone `local-ai-packaged` + `docker compose up`)
 - ⬜ ANSIBLE-001c — Rôles `sandbox` (3 réseaux ADR-0008 + composes maison) + `backups` (cron 02h00 + rclone R2) + `playbooks/setup.yml` final orchestrant les 5 rôles + tests Ansible (`--syntax-check` minimum, `--check` E2E si feasible)
 - ⬜ DNS-001 — Cloudflare DNS records via API (A wildcard pointant sur l'IP publique de la machine)
