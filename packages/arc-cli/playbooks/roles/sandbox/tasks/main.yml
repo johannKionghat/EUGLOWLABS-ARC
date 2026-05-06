@@ -1,0 +1,45 @@
+---
+# sandbox role — task entry point.
+#
+# Policy (ANSIBLE-001c sub-task 1, ADR-0008) :
+#  - Crée les 3 networks ARC : prod_net, ai_net, sandbox_net.
+#  - sandbox_net est `internal: true` → no internet egress, no cross-network.
+#    C'est la couche réseau du sandboxing du code executor (cf. spec §11.2 :
+#    FS read-only + cap_drop + no-new-privileges + mem_limit + sandbox_net
+#    forment le multi-couches d'isolation).
+#  - Les containers Coolify et local-ai-packaged tournent dans LEURS propres
+#    networks internes (créés par leurs composes respectifs). Le bridge entre
+#    ces networks et les networks ARC est hors scope 001c — viendra avec le
+#    déploiement des containers maison (OpenClaw, DeepAgents) en tâche futur.
+#
+# Le rôle est sûr à re-runner : community.docker.docker_network est déclaratif
+# (idempotent — change=0 si la conf matche, recreate sinon).
+
+- name: Create ARC Docker networks (prod_net + ai_net + sandbox_net) per ADR-0008
+  community.docker.docker_network:
+    name: "{{ item.name }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ item.subnet }}"
+    internal: "{{ item.internal }}"
+    labels:
+      arc.network: "{{ item.name }}"
+      arc.role: "{{ item.role }}"
+      arc.managed-by: "ansible"
+    state: present
+  loop: "{{ arc_networks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [sandbox, networks]
+
+- name: Display ARC networks summary
+  ansible.builtin.debug:
+    msg: |
+      ✅ ARC Docker networks ready (ADR-0008):
+        - prod_net     172.20.0.0/24  (external — Coolify + prod apps)
+        - ai_net       172.21.0.0/24  (external — local-ai-packaged stack)
+        - sandbox_net  172.22.0.0/24  (internal: true — no internet, no cross-network)
+
+      Inspect:  docker network ls --filter label=arc.managed-by=ansible
+      Detail :  docker network inspect prod_net | jq '.[0].Labels, .[0].IPAM'
+  tags: [sandbox, networks]

@@ -1,0 +1,29 @@
+---
+# sandbox role — default variables.
+#
+# Per ADR-0008, ARC opère sur 3 réseaux Docker isolés :
+#  - prod_net     : Coolify + apps Next.js de prod (deploy via Coolify, peut sortir vers internet)
+#  - ai_net       : services local-ai-packaged (Ollama, Supabase, n8n, …) — peut appeler APIs externes
+#  - sandbox_net  : code executor / OpenClaw / DeepAgents — `internal: true` = AUCUN accès internet
+#                   ni accès aux autres networks. Garde-fou anti-exfiltration de code agent.
+#
+# Subnets explicites pour éviter la collision avec d'autres ranges Docker (les défauts
+# 172.17/16 → 172.31/16 sont consommés par Docker bridge0 et les composes Coolify/AI).
+#
+# Labels arc.* pour traçabilité côté `docker network ls --filter label=arc.managed-by=ansible`.
+
+arc_networks:
+  - name: prod_net
+    subnet: 172.20.0.0/24
+    role: production
+    internal: false
+
+  - name: ai_net
+    subnet: 172.21.0.0/24
+    role: ai
+    internal: false
+
+  - name: sandbox_net
+    subnet: 172.22.0.0/24
+    role: sandbox
+    internal: true

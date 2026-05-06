@@ -1,0 +1,5 @@
+---
+# sandbox role — handlers.
+# Sub-task 1: no handler needed — community.docker.docker_network is declarative
+# and idempotent (network exists with right config → no change ; config drifted →
+# recreate during the same task run).
