@@ -1,0 +1,133 @@
+---
+# ai-stack role — task entry point.
+#
+# Policy (ANSIBLE-001b sub-task 2) :
+#  - Deploy coleam00/local-ai-packaged at pinned SHA via upstream's start_services.py
+#    orchestration (sparse-clones supabase/supabase, generates SearXNG key,
+#    double-compose under unified project name `localai`).
+#  - Generate a per-host .env with random secrets, kept in ~/.arc/credentials/
+#    (mode 0600, user-owned). Symlinked into /opt/local-ai/.env so the upstream
+#    script reads it transparently. ADR-0015 compliant.
+#  - JWT trio (JWT_SECRET / ANON_KEY / SERVICE_ROLE_KEY) uses upstream demo values
+#    — cryptographically interlinked. Regen mandatory before public exposure.
+#  - Kong HTTP port remapped 8000 → {{ arc_kong_http_port }} to avoid collision
+#    with Coolify (which binds 8000 in 001b sub-task 1).
+
+- name: Ensure ARC credentials directory exists (user-scoped, 0700)
+  ansible.builtin.file:
+    path: "{{ arc_credentials_dir }}"
+    state: directory
+    owner: "{{ arc_user }}"
+    group: "{{ arc_user }}"
+    mode: '0700'
+  become: false
+  tags: [ai-stack, secrets]
+
+- name: Stat local-ai.env (idempotence pivot — template renders only on first run)
+  ansible.builtin.stat:
+    path: "{{ arc_credentials_dir }}/local-ai.env"
+  register: arc_local_ai_env_stat
+  become: false
+  tags: [ai-stack, secrets]
+
+- name: Generate local-ai.env from template (first-run only — random secrets)
+  ansible.builtin.template:
+    src: local-ai.env.j2
+    dest: "{{ arc_credentials_dir }}/local-ai.env"
+    owner: "{{ arc_user }}"
+    group: "{{ arc_user }}"
+    mode: '0600'
+  when: not arc_local_ai_env_stat.stat.exists
+  become: false
+  tags: [ai-stack, secrets]
+
+- name: Ensure local-ai install directory exists (root-scoped, 0755)
+  ansible.builtin.file:
+    path: "{{ arc_local_ai_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [ai-stack, install]
+
+- name: Clone local-ai-packaged at pinned SHA
+  ansible.builtin.git:
+    repo: "{{ arc_local_ai_repo }}"
+    dest: "{{ arc_local_ai_install_dir }}"
+    version: "{{ arc_local_ai_version }}"
+    update: true
+  tags: [ai-stack, install]
+
+- name: Symlink upstream .env file into ARC credentials store
+  ansible.builtin.file:
+    src: "{{ arc_credentials_dir }}/local-ai.env"
+    dest: "{{ arc_local_ai_install_dir }}/.env"
+    state: link
+    force: true
+  tags: [ai-stack, install]
+
+- name: Run upstream start_services.py (clones supabase + sed SearXNG + double-compose)
+  ansible.builtin.command:
+    cmd: "python3 start_services.py --profile {{ arc_local_ai_profile }} --environment private"
+    chdir: "{{ arc_local_ai_install_dir }}"
+  changed_when: true
+  tags: [ai-stack, install]
+
+- name: Pull Ollama models (skipped when arc_ollama_pull_models is empty)
+  ansible.builtin.command:
+    cmd: "docker compose -p localai exec -T ollama-{{ arc_local_ai_profile }} ollama pull {{ item }}"
+    chdir: "{{ arc_local_ai_install_dir }}"
+  loop: "{{ arc_ollama_pull_models }}"
+  when: arc_ollama_pull_models | length > 0
+  changed_when: true
+  tags: [ai-stack, install]
+
+- name: Wait for Supabase Kong endpoint (retry 30 × 10s = 5 min budget)
+  ansible.builtin.uri:
+    url: "http://localhost:{{ arc_kong_http_port }}"
+    status_code: [200, 401, 404]
+    follow_redirects: none
+    timeout: 5
+  register: arc_supabase_health
+  until: arc_supabase_health is succeeded
+  retries: 30
+  delay: 10
+  changed_when: false
+  tags: [ai-stack, healthcheck]
+
+- name: Wait for Ollama API endpoint (retry 30 × 10s = 5 min budget)
+  ansible.builtin.uri:
+    url: http://localhost:11434/api/version
+    status_code: [200]
+    timeout: 5
+  register: arc_ollama_health
+  until: arc_ollama_health is succeeded
+  retries: 30
+  delay: 10
+  changed_when: false
+  tags: [ai-stack, healthcheck]
+
+- name: Display ai-stack endpoints and JWT regen warning
+  ansible.builtin.debug:
+    msg: |
+      ✅ ai-stack is up.
+
+      Primary endpoints:
+        - Supabase API (Kong) : http://localhost:{{ arc_kong_http_port }}
+        - Ollama API          : http://localhost:11434/api/version
+
+      Other services (n8n, Open WebUI, Flowise, Langfuse, Studio, …) expose
+      their own ports — inspect with:
+        docker compose -p localai ps
+
+      ⚠️  WARNING — JWT trio is upstream DEMO values.
+      JWT_SECRET / ANON_KEY / SERVICE_ROLE_KEY in
+        {{ arc_credentials_dir }}/local-ai.env
+      are cryptographically interlinked demo keys (work as a self-consistent set).
+
+      BEFORE exposing Supabase publicly (Caddy + DNS + Let's Encrypt):
+        1. Regenerate the trio:
+           https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+        2. Update local-ai.env (all 3 keys atomically — rotating only one breaks Supabase).
+        3. Re-run `arc setup --apply` to restart the stack with the new keys.
+  tags: [ai-stack, healthcheck]

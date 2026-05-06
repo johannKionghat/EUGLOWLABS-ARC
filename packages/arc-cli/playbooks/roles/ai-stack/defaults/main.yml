@@ -1,0 +1,30 @@
+---
+# ai-stack role — default variables.
+
+# Install location for the cloned local-ai-packaged repo (root-scoped, ADR-0015).
+arc_local_ai_install_dir: "/opt/local-ai"
+
+# Upstream repo and pinned commit SHA. Bump deliberately — verify .env.example
+# variable list and start_services.py orchestration haven't drifted.
+arc_local_ai_repo: "https://github.com/coleam00/local-ai-packaged.git"
+arc_local_ai_version: "2c541913c0f97d7e2e4de3ee7e3f790fc63ce613"
+
+# Where ARC stores user-scoped secrets (mode 0700, owned by arc_user).
+# ADR-0015: credentials under ~/.arc/, code under /opt/.
+# arc_user is mirrored from the hardening/docker roles' default expression.
+# Path computed deterministically (independent of become context — under
+# `become: true`, ansible_env.HOME would resolve to /root, which is wrong).
+arc_user: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER'), true) }}"
+arc_credentials_dir: "{{ '/root' if arc_user == 'root' else '/home/' + arc_user }}/.arc/credentials"
+
+# Docker Compose profile passed to start_services.py.
+# Options: cpu | gpu-nvidia | gpu-amd | none. Default cpu (no GPU required).
+arc_local_ai_profile: "cpu"
+
+# Kong HTTP port remap. Upstream default is 8000 — collides with Coolify
+# (binds 8000 since 001b sub-task 1). 8001 is unused on a fresh ARC install.
+arc_kong_http_port: 8001
+
+# Optional: Ollama models to pull after the stack is up. Default empty.
+# Example: ["llama3.2:3b", "qwen2.5:1.5b"]
+arc_ollama_pull_models: []

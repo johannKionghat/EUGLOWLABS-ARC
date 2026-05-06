@@ -131,16 +131,9 @@ Compléter le playbook ARC avec les **deux rôles applicatifs centraux** posés 
   4. Healthcheck combiné via `ansible.builtin.uri` (curl 8000) + `ansible.builtin.command: docker compose ps` avec `until: ... is succeeded` + `retries: 30 delay: 10`.
   Tags `[coolify, install]` / `[coolify, healthcheck]`. Pas de handler nécessaire si la conf compose ne change pas (idempotence via `community.docker.docker_compose_v2`).
 
-### Sous-tâche 2 : Rôle `ai-stack`
-- Fichiers : `playbooks/roles/ai-stack/{tasks,handlers,defaults}/main.yml` (création) + `playbooks/setup.yml` (append `ai-stack` dans `roles:`)
-- Effort estimé : ~35 min
-- Détail : `defaults` expose `ai_stack_repo_url`, `ai_stack_repo_sha`, `ai_stack_install_dir: /opt/local-ai-packaged`. `tasks` :
-  1. `ansible.builtin.file` : ensure `/opt/local-ai-packaged/` parent exists.
-  2. `ansible.builtin.git` : clone à `version: {{ ai_stack_repo_sha }}` (pinned). `update: true` si SHA change.
-  3. `ansible.builtin.copy` : `src: {{ install_dir }}/.env.example dest: {{ install_dir }}/.env force: false` (only-if-missing).
-  4. `community.docker.docker_compose_v2` : `state: present`, `project_src: {{ install_dir }}`.
-  5. Healthcheck retry 30×10s : `ansible.builtin.uri url=http://localhost:11434/api/version` + `ansible.builtin.uri url=http://localhost:54323`.
-  Tags `[ai-stack, install]` / `[ai-stack, healthcheck]`.
+### Sous-tâche 2 : Rôle `ai-stack` ✅
+- Fichiers : `playbooks/roles/ai-stack/{tasks,handlers,defaults}/main.yml` + `templates/local-ai.env.j2` (NEW) + `playbooks/setup.yml` (append `ai-stack`)
+- Détail livré : 11 tâches (3 secrets `become: false` + 8 install/healthcheck `become: true`). Template Jinja2 rendu first-run-only (stat-then-template), 16 secrets random + trio JWT démo upstream + 28 configs verbatim. Orchestration via `python3 start_services.py --profile cpu --environment private` (option β décidée — délègue à upstream pour le sparse-clone Supabase + sed SearXNG + double-compose). Symlink `/opt/local-ai/.env` → `~/.arc/credentials/local-ai.env` créé AVANT `start_services.py`. Kong remappé 8000→8001 pour éviter collision Coolify. Healthchecks Supabase Kong + Ollama (5 min retry). Debug task final affiche URLs + warning JWT regen.
 
 ### Sous-tâche 3 : Validation finale
 - Fichiers : aucun changement code, scratchpad `current.md` enrichi avec résultats.
@@ -164,3 +157,8 @@ Compléter le playbook ARC avec les **deux rôles applicatifs centraux** posés 
 
 ## CLI gaps
 - Si `requirements.yml` bumpe en `>=3.7,<4.0` plus tard (autre rôle aura besoin d'une feature 3.7+), remplacer `ansible.builtin.command: docker compose pull` par `community.docker.docker_compose_v2_pull` dans le rôle `coolify` pour cohérence idiomatique. Choisi en sous-tâche 1 d'001b pour rester sur `ansible.builtin.*` universel et éviter un bump dépendance pour 1 module.
+- **JWT trio démo Supabase** : régénérer impérativement avant exposition publique (Caddy + DNS + Let's Encrypt). Lien doc : https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys. Trio actuel `JWT_SECRET / ANON_KEY / SERVICE_ROLE_KEY` = valeurs upstream démo, cryptographiquement liées (rotation atomique obligatoire).
+- **Pinner le sparse-clone Supabase sur SHA** quand E2E-001 stable. `start_services.py` upstream fait `git pull master` sur `supabase/supabase` → drift potentiel à chaque run. Acceptable en 001b, à durcir.
+- **SearXNG `cap_drop` dance** gérée par `start_services.py` upstream — risque de breaking change si upstream modifie. Surveiller à chaque bump du SHA pinned `arc_local_ai_version`.
+- **Container name Ollama** dépend du profile (`ollama-cpu` / `ollama-gpu` / `ollama-gpu-amd`). Le pull task utilise `ollama-{{ arc_local_ai_profile }}` — vérifier mapping si bump du profile en var.
+- **Suppression manuelle de `~/.arc/credentials/local-ai.env`** → regen secrets → desync avec données Postgres (anciens user/password DB locked out). Pattern « delete = nouvelle install ». Documenté dans le header du template + opérational warning.

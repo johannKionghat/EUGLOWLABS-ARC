@@ -1,0 +1,4 @@
+---
+# ai-stack role — handlers.
+# Sub-task 2: no handler needed — start_services.py owns the lifecycle (down + up).
+# A change to local-ai.env or compose files implies re-running the role.
