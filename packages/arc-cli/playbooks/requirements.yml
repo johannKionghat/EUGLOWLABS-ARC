@@ -1,0 +1,20 @@
+---
+# EuglowLabs ARC — Ansible Galaxy requirements.
+#
+# Install before `arc setup --apply`:
+#   ansible-galaxy collection install -r requirements.yml
+#
+# Required for:
+#   - community.general.ufw (hardening role, since ANSIBLE-001a)
+#   - community.docker.docker_compose_v2 (coolify + ai-stack roles, ANSIBLE-001b)
+#   - community.docker.docker_network (sandbox role, ANSIBLE-001c)
+#
+# If you installed Ansible via `apt install ansible` (full package),
+# these collections are usually bundled. Use `ansible-galaxy collection list`
+# to verify.
+
+collections:
+  - name: community.general
+    version: ">=8.0.0,<11.0.0"
+  - name: community.docker
+    version: ">=3.5.0,<4.0.0"
