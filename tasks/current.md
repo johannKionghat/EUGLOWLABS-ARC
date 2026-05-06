@@ -159,3 +159,5 @@ Ces rôles préparent la machine cible pour `coolify` / `ai-stack` (ANSIBLE-001b
 
 - Mettre à jour `docs/04-conventions/naming.md` pour documenter la convention de suffixe `a/b/c` (fix regex commit-msg fait via [INFRA-006], doc à aligner).
 - Créer `packages/arc-cli/playbooks/requirements.yml` pour pinner les collections Ansible nécessaires (au minimum `community.general` requise par `community.general.ufw` utilisé en sous-tâche 2 d'ANSIBLE-001a). À traiter avant ANSIBLE-001b ou en tâche dédiée. Tant que ce n'est pas fait, le smoke test exige `apt install ansible` (full) côté cible — `ansible-core` seul fera planter `community.general.*`.
+- Si demande user future : exposer `arc_unattended_allow_general_updates` / `arc_unattended_auto_reboot` (figés YAGNI en 001a sous-tâche 3 — Q8 = security-only + no auto-reboot).
+- Si élargissement aux distros RedHat plus tard (Fedora/RHEL/Rocky) : conditionner `service name: ssh` (Debian/Ubuntu) → `sshd` (RedHat) sur `ansible_os_family`. Idem `apt`/`dnf`. Hors scope ANSIBLE-001 (assert Debian-family suffit).

@@ -5,3 +5,18 @@
 # Default 22 (compatible with vanilla VPS / RPi / WSL2). Change requires careful
 # transition (open new port BEFORE closing old) — handled in 001b/c, not here.
 arc_ssh_port: 22
+
+# arc_user: pilot user for ARC. Used by:
+#  - SSH safety check (verifies authorized_keys exists before disabling password auth)
+#  - docker role (added to the docker group, in 001a sub-task 4)
+# Default resolves the human user that ran `arc setup --apply`:
+#  - SUDO_USER if invoked via sudo
+#  - USER otherwise
+# Override on the CLI if the homedir is non-standard (LDAP, /opt/users/…):
+#   arc setup --apply -- -e arc_user=alice
+arc_user: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER'), true) }}"
+
+# fail2ban tuning (Q7)
+arc_fail2ban_maxretry: 5
+arc_fail2ban_bantime: 1h
+arc_fail2ban_recidive_bantime: 1w

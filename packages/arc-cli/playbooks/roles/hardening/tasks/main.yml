@@ -9,7 +9,7 @@
 #  - SSH : drop-in /etc/ssh/sshd_config.d/99-arc.conf, no in-place edits to sshd_config.
 #  - unattended-upgrades : security only, no auto-reboot.
 #
-# UFW lands in sub-task 2 (this file). fail2ban + SSH + unattended-upgrades land in sub-task 3.
+# UFW (sub-task 2). unattended-upgrades + fail2ban + SSH key-only (sub-task 3, this file).
 #
 # CRITICAL — UFW operation order:
 #   1. apt install ufw
@@ -80,3 +80,157 @@
     state: enabled
     logging: "on"
   tags: [hardening, ufw]
+
+# ----------------------------------------------------------------------------
+# unattended-upgrades — security-only auto-updates, no auto-reboot (Q8).
+# Drop-in /etc/apt/apt.conf.d/52arc-unattended-upgrades overrides the vendor
+# 50unattended-upgrades. Activation via /etc/apt/apt.conf.d/20auto-upgrades.
+# ----------------------------------------------------------------------------
+
+- name: Install unattended-upgrades + apt-listchanges
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [hardening, updates]
+
+- name: Configure unattended-upgrades policy (security-only, no auto-reboot)
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52arc-unattended-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      // Managed by ARC (ANSIBLE-001a, hardening role).
+      // DO NOT EDIT — overwritten on next `arc setup --apply`.
+      Unattended-Upgrade::Allowed-Origins {
+          "${distro_id}:${distro_codename}-security";
+      };
+      Unattended-Upgrade::Automatic-Reboot "false";
+  tags: [hardening, updates]
+
+- name: Enable periodic unattended-upgrades (20auto-upgrades)
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      // Managed by ARC (ANSIBLE-001a, hardening role).
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  tags: [hardening, updates]
+
+# ----------------------------------------------------------------------------
+# fail2ban — sshd + recidive jails only (Q7). Drop-in /etc/fail2ban/jail.d/99-arc.local.
+# ----------------------------------------------------------------------------
+
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [hardening, fail2ban]
+
+- name: Deploy ARC fail2ban jail drop-in (sshd + recidive)
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/99-arc.local
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # Managed by ARC (ANSIBLE-001a, hardening role).
+      # DO NOT EDIT — overwritten on next `arc setup --apply`.
+      # To unban an IP manually:
+      #   fail2ban-client set <jail> unbanip <ip>
+
+      [DEFAULT]
+      maxretry = {{ arc_fail2ban_maxretry }}
+      bantime  = {{ arc_fail2ban_bantime }}
+
+      [sshd]
+      enabled = true
+      port    = {{ arc_ssh_port }}
+
+      [recidive]
+      enabled = true
+      bantime = {{ arc_fail2ban_recidive_bantime }}
+  notify: restart fail2ban
+  tags: [hardening, fail2ban]
+
+- name: Ensure fail2ban service is started + enabled
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: yes
+  tags: [hardening, fail2ban]
+
+# ----------------------------------------------------------------------------
+# SSH key-only — drop-in /etc/ssh/sshd_config.d/99-arc.conf.
+# SAFETY: refuse to disable PasswordAuthentication if no authorized_keys exists.
+# VALIDATION: sshd -t runs after the drop-in is written; the play fails BEFORE
+# the handler flushes if config is invalid, so the reload never happens with
+# a broken config.
+# ----------------------------------------------------------------------------
+
+- name: SAFETY — stat {{ arc_user }}'s authorized_keys (lockout prevention)
+  ansible.builtin.stat:
+    path: "{{ '/root' if arc_user == 'root' else '/home/' + arc_user }}/.ssh/authorized_keys"
+  register: arc_ssh_authkeys
+  tags: [hardening, ssh]
+
+- name: SAFETY — fail loudly if no public key is installed for {{ arc_user }}
+  ansible.builtin.fail:
+    msg: |
+      Refusing to disable SSH password authentication: no public key was found at
+        {{ '/root' if arc_user == 'root' else '/home/' + arc_user }}/.ssh/authorized_keys
+
+      Disabling PasswordAuthentication without a working public key would lock you
+      out of this machine.
+
+      Add a key first, then re-run `arc setup --apply`:
+
+        # From your laptop:
+        ssh-copy-id {{ arc_user }}@<host>
+
+        # Or manually on the target:
+        mkdir -p ~{{ arc_user }}/.ssh
+        chmod 700 ~{{ arc_user }}/.ssh
+        echo 'ssh-ed25519 AAAA... your@key' >> ~{{ arc_user }}/.ssh/authorized_keys
+        chmod 600 ~{{ arc_user }}/.ssh/authorized_keys
+        chown -R {{ arc_user }}:{{ arc_user }} ~{{ arc_user }}/.ssh
+
+      If your home directory layout is non-standard (LDAP, /opt/users/…),
+      override arc_user on the CLI: `arc setup --apply -- -e arc_user=alice`.
+  when: not arc_ssh_authkeys.stat.exists or (arc_ssh_authkeys.stat.size | default(0)) == 0
+  tags: [hardening, ssh]
+
+- name: Deploy SSH hardening drop-in (PasswordAuthentication no, etc.)
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-arc.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # Managed by ARC (ANSIBLE-001a, hardening role).
+      # DO NOT EDIT — overwritten on next `arc setup --apply`.
+      PasswordAuthentication no
+      PubkeyAuthentication yes
+      ChallengeResponseAuthentication no
+      PermitRootLogin prohibit-password
+      {% if arc_ssh_port | int != 22 %}
+      Port {{ arc_ssh_port }}
+      {% endif %}
+  register: arc_sshd_dropin
+  notify: reload sshd
+  tags: [hardening, ssh]
+
+- name: Validate full sshd config via `sshd -t` (handler reload only fires if this passes)
+  ansible.builtin.command: sshd -t
+  changed_when: false
+  when: arc_sshd_dropin is changed
+  tags: [hardening, ssh]
