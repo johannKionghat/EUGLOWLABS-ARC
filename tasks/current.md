@@ -154,3 +154,8 @@ Ces rôles préparent la machine cible pour `coolify` / `ai-stack` (ANSIBLE-001b
 - **Q6 — Ports UFW** : 22/80/443 uniquement. Pas d'ouverture 8000 (Coolify dashboard reste localhost-only, accès SSH tunnel). Commentaire en tête de `roles/hardening/tasks/main.yml` expliquant cette politique.
 - **Q7 — fail2ban jails** : `sshd` + `recidive` uniquement en 001a. `maxretry=5`, `bantime=1h`, recidive `bantime=1 semaine`. Pas d'apache/nginx. Documenter `fail2ban-client set <jail> unbanip <ip>` en commentaire YAML.
 - **Q8 — unattended-upgrades** : security only. `Automatic-Reboot "false"`. `Allowed-Origins` limité à `${distro_id}:${distro_codename}-security`.
+
+## CLI gaps
+
+- Mettre à jour `docs/04-conventions/naming.md` pour documenter la convention de suffixe `a/b/c` (fix regex commit-msg fait via [INFRA-006], doc à aligner).
+- Créer `packages/arc-cli/playbooks/requirements.yml` pour pinner les collections Ansible nécessaires (au minimum `community.general` requise par `community.general.ufw` utilisé en sous-tâche 2 d'ANSIBLE-001a). À traiter avant ANSIBLE-001b ou en tâche dédiée. Tant que ce n'est pas fait, le smoke test exige `apt install ansible` (full) côté cible — `ansible-core` seul fera planter `community.general.*`.

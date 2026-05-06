@@ -1,3 +1,8 @@
 ---
 # Hardening role — handlers.
-# Populated in sub-task 3 (restart fail2ban, reload sshd).
+# UFW reload added in sub-task 2. fail2ban + sshd handlers added in sub-task 3.
+
+- name: reload ufw
+  community.general.ufw:
+    state: reloaded
+  listen: reload ufw

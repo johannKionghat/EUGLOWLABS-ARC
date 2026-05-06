@@ -9,4 +9,74 @@
 #  - SSH : drop-in /etc/ssh/sshd_config.d/99-arc.conf, no in-place edits to sshd_config.
 #  - unattended-upgrades : security only, no auto-reboot.
 #
-# Implementation lands in ANSIBLE-001a sub-tasks 2 (UFW) + 3 (fail2ban + SSH + unattended).
+# UFW lands in sub-task 2 (this file). fail2ban + SSH + unattended-upgrades land in sub-task 3.
+#
+# CRITICAL — UFW operation order:
+#   1. apt install ufw
+#   2. /etc/default/ufw → IPV6=yes  (Q5)
+#   3. default policies (deny in / allow out)
+#   4. allow {{ arc_ssh_port }}, 80, 443    ← BEFORE enable
+#   5. ufw enable                            ← LAST
+# Inverting (4) and (5) will lock the operator out of their SSH session.
+
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [hardening, ufw]
+
+- name: Enable IPv6 in /etc/default/ufw
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: '^IPV6='
+    line: 'IPV6=yes'
+    state: present
+  notify: reload ufw
+  tags: [hardening, ufw]
+
+- name: Set UFW default policy — deny incoming
+  community.general.ufw:
+    default: deny
+    direction: incoming
+  tags: [hardening, ufw]
+
+- name: Set UFW default policy — allow outgoing
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+  tags: [hardening, ufw]
+
+- name: Allow SSH on configured port (BEFORE enable)
+  community.general.ufw:
+    rule: allow
+    port: "{{ arc_ssh_port }}"
+    proto: tcp
+    comment: "ARC: SSH access"
+  tags: [hardening, ufw]
+
+- name: Allow HTTP / port 80 (BEFORE enable) — pre-cert ACME http-01 for Coolify
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    comment: "ARC: HTTP / ACME http-01"
+  tags: [hardening, ufw]
+
+- name: Allow HTTPS / port 443 (BEFORE enable) — Coolify post-cert traffic
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+    comment: "ARC: HTTPS"
+  tags: [hardening, ufw]
+
+# Note: port 8000 (Coolify dashboard) is NOT exposed (Q6). Operators tunnel via SSH:
+#   ssh -L 8000:localhost:8000 user@host
+
+- name: Enable UFW (LAST — all allow rules above must be in place first)
+  community.general.ufw:
+    state: enabled
+    logging: "on"
+  tags: [hardening, ufw]
