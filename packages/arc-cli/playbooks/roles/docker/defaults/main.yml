@@ -2,6 +2,11 @@
 # Docker role — default variables.
 #
 # arc_user: local user added to the `docker` group so post-setup `arc *` commands
-# can run `docker compose ...` without sudo. Defaults to the user that invoked
-# ansible-playbook (i.e. the user running `arc setup --apply`).
-arc_user: "{{ ansible_user_id }}"
+# can run `docker compose ...` without sudo. Resolves the human user that ran
+# `arc setup --apply`:
+#  - SUDO_USER if invoked via sudo
+#  - USER otherwise
+# Aligned with the hardening role's arc_user default (same expression).
+# Override on the CLI if homedir is non-standard:
+#   arc setup --apply -- -e arc_user=alice
+arc_user: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER'), true) }}"

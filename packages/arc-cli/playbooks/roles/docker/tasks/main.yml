@@ -4,8 +4,136 @@
 # Policy (ANSIBLE-001a sub-task 4) :
 #  - Install Docker Engine + Compose v2 plugin from the official Docker apt repo.
 #  - No standalone docker-compose v1 (deprecated). Existing v1 binaries are
-#    NOT auto-purged — coexistence is the user's responsibility.
-#  - Add {{ arc_user }} to the `docker` group so subsequent `arc *` commands
-#    run `docker compose ...` without sudo.
+#    NOT auto-purged — coexistence is the user's responsibility (decision Q6).
+#  - Add {{ arc_user }} to the `docker` group with append: yes so subsequent
+#    `arc *` commands run `docker compose ...` without sudo.
 #
-# Implementation lands in ANSIBLE-001a sub-task 4.
+# Modern keyring approach (apt_key is deprecated since Ubuntu 22.04):
+#  - GPG key  → /etc/apt/keyrings/docker.asc
+#  - Repo line uses signed-by= pointing to the keyring file
+#
+# Architecture and distro release are detected dynamically (no hardcoded
+# amd64 / noble) so the role works on amd64 + arm64, Ubuntu + Debian.
+
+- name: Install prerequisites for Docker apt repo
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [docker, install]
+
+- name: Ensure /etc/apt/keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [docker, install]
+
+- name: Download Docker GPG key (modern keyring, not apt_key)
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [docker, install]
+
+- name: Add Docker apt repository (signed-by /etc/apt/keyrings/docker.asc)
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ docker_apt_arch }} signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/{{ ansible_distribution | lower }}
+      {{ ansible_distribution_release }} stable
+    filename: docker
+    state: present
+    update_cache: yes
+  vars:
+    # ansible_architecture is the kernel arch (x86_64 / aarch64). Docker apt repo
+    # expects Debian arch names (amd64 / arm64). Map explicitly to avoid surprises.
+    docker_apt_arch: >-
+      {{ 'amd64' if ansible_architecture == 'x86_64'
+         else 'arm64' if ansible_architecture == 'aarch64'
+         else ansible_architecture }}
+  tags: [docker, install]
+
+- name: Install Docker Engine + Compose v2 plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [docker, install]
+
+- name: Ensure docker service is started + enabled
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: yes
+  tags: [docker, install]
+
+# ----------------------------------------------------------------------------
+# Add the pilot user to the docker group.
+# `append: yes` is MANDATORY — without it, the user would lose membership in
+# every other group (sudo, dialout, plugdev, …) and become unusable.
+# ----------------------------------------------------------------------------
+
+- name: Assert arc_user is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - arc_user is defined
+      - (arc_user | string | trim | length) > 0
+    fail_msg: |
+      arc_user resolved to empty. The default expression reads SUDO_USER then
+      USER from the environment. Override on the CLI:
+        arc setup --apply -- -e arc_user=alice
+  tags: [docker, group]
+
+- name: "Add {{ arc_user }} to the docker group (append yes — preserves sudo, dialout, …)"
+  ansible.builtin.user:
+    name: "{{ arc_user }}"
+    groups: docker
+    append: yes
+  tags: [docker, group]
+
+# ----------------------------------------------------------------------------
+# Verify Compose v2 is the active binary. We refuse v1 (deprecated). If the
+# operator has a residual standalone docker-compose v1 (pip / manual download),
+# this check surfaces it — but we DO NOT auto-purge (decision Q6: respect the
+# operator's other projects).
+# ----------------------------------------------------------------------------
+
+- name: Run `docker compose version` (capture output)
+  ansible.builtin.command: docker compose version
+  register: arc_docker_compose_version
+  changed_when: false
+  tags: [docker, verify]
+
+- name: Assert Compose v2 is the active binary
+  ansible.builtin.assert:
+    that:
+      - arc_docker_compose_version.stdout is search('Docker Compose version v?2\\.')
+    fail_msg: |
+      `docker compose version` did not return a v2 string.
+      Got: {{ arc_docker_compose_version.stdout | default('(empty)') }}
+
+      A residual standalone `docker-compose` v1 may be shadowing the v2 plugin.
+      Resolve manually (we do NOT auto-purge — that could break your other
+      projects). Suggested:
+        sudo apt remove --purge docker-compose       # if installed via apt
+        pip uninstall docker-compose                  # if installed via pip
+        which docker-compose                          # find the binary path
+        sudo rm -f $(which docker-compose)            # if standalone download
+
+      Then re-run `arc setup --apply`.
+    success_msg: "Docker Compose v2 detected: {{ arc_docker_compose_version.stdout_lines[0] }}"
+  tags: [docker, verify]
