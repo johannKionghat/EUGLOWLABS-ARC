@@ -1,13 +1,152 @@
-# Aucune tâche active
+# Tâche : DNS-001 — Cloudflare API records DNS automatiques
 
-Pour démarrer une tâche, lance :
+## Statut
+🟡 En cours — démarrée le 2026-05-07
 
-    /arc-task-start [TASK-ID]
+## Objectif
+Livrer 3 commandes CLI `arc dns add` / `arc dns list` / `arc dns remove` qui interagissent avec l'API Cloudflare v4 pour créer/lister/supprimer des records DNS (A, CNAME, TXT) dans la zone du domaine ARC. Compatible mode `--dry-run` pour audit sans token et exécution offline en CI. Token operator-managed dans `~/.arc/credentials/cloudflare.env` (cohérent `r2.env` / `local-ai.env` du backups role).
 
-Prochaine tâche suggérée : **DNS-001** — Cloudflare API integration pour records DNS automatiques (A wildcard pointant sur l'IP publique).
+Cette tâche est la dernière brique infra avant E2E-001 — elle débloquera le déploiement de records `A wildcard` pointant l'IP publique du VPS sur le domaine de l'opérateur (cf. `docs/install-without-public-ip.md` pour le cas tunneled).
 
-Pré-requis : compte Cloudflare avec API token (variable d'env ou `~/.arc/credentials/cloudflare.env`). Hors Ansible — scope CLI ou shell-out.
+## Critères d'acceptation
 
-**Phase 1.5 Ansible : COMPLÈTE** (6 rôles livrés via ANSIBLE-001a/b/c). Reste DNS-001 + E2E-001 pour fermer le Chantier 1.
+### Module `src/dns/` (sous-tâche 1)
+- [ ] Client `CloudflareClient` (class) avec méthodes `listZones`, `listRecords`, `createRecord`, `deleteRecord` — appelle `https://api.cloudflare.com/client/v4` via `fetch()` natif
+- [ ] Types Zod : `Zone`, `DnsRecord`, `CreateDnsRecordRequest` (parse strict des réponses API)
+- [ ] Erreurs typées : `CloudflareCredentialsMissingError`, `CloudflareAuthError` (401/403), `CloudflareApiError` (4xx/5xx générique), `CloudflareRecordExistsError` (collision sans `--force`), `CloudflareZoneNotFoundError`
+- [ ] Helper `loadCloudflareCredentials()` qui parse `~/.arc/credentials/cloudflare.env` (KEY=VALUE) et retourne `{ apiToken, zoneId? }` — pattern slurp-then-parse cohérent backups role
+- [ ] Tests vi.spyOn(globalThis, 'fetch') : happy path list, auth 401, network error, JSON parse error, credentials missing — **~5 tests**
 
-12 CLI gaps actifs hérités d'ANSIBLE-001a/b/c à traiter au moment opportun (cf. `tasks/completed/2026-05-07-ANSIBLE-001c.md` section « CLI gaps »).
+### Commandes CLI (sous-tâche 2)
+- [ ] `arc dns add <name> --type=<A|CNAME|TXT> --content=<val> [--ttl=auto] [--proxied] [--force] [--dry-run]`
+- [ ] `arc dns list [--zone=<root>] [--type=<A|CNAME|TXT>] [--name=<filter>]`
+- [ ] `arc dns remove <name> --type=<A|CNAME|TXT> [--content=<val>] [--force] [--dry-run]`
+- [ ] Toutes les commandes :
+  - [ ] Mode `--dry-run` : affiche l'opération qui serait faite, **0 appel API**
+  - [ ] Sans `--dry-run` et sans token configuré : erreur claire avec instruction (« créez `~/.arc/credentials/cloudflare.env` avec `CLOUDFLARE_API_TOKEN=…` »)
+  - [ ] Zone resolution : `CLOUDFLARE_ZONE_ID` (env file) → fallback auto-discovery via `GET /zones?name=<root>` (last 2 labels first, walk up if 0 hit)
+  - [ ] `add` refuse de overwrite un record existant sans `--force`
+- [ ] Commandes enregistrées dans `src/cli.ts` (clipanion `cli.register(...)`)
+- [ ] Tests : pour chaque commande, ~2 tests (dry-run path + happy path mocké) — **~6 tests**
+
+### Validation finale (sous-tâche 3)
+- [ ] `pnpm test` → 144 → ~155 verts (estimation : 5 client tests + 6 commandes tests = 11 nouveaux tests)
+- [ ] `pnpm lint` → Biome no fixes
+- [ ] `pnpm typecheck` → tous packages OK
+- [ ] `ansible-lint` → 0 violation maintenu (no impact, scope TS uniquement)
+- [ ] `packages/arc-cli/README.md` enrichi avec section « DNS commands » + exemples copiables (`arc dns add`, `--dry-run`, format `cloudflare.env`)
+- [ ] **Smoke runtime** (création réelle d'un record A/CNAME/TXT et cleanup avec un vrai token) _(reporté à E2E-001)_
+
+## Fichiers concernés (estimation : 10 fichiers, dont 8 nouveaux)
+
+| Fichier | Action |
+|---|---|
+| `packages/arc-cli/src/dns/client.ts` | création (NEW) |
+| `packages/arc-cli/src/dns/client.test.ts` | création (NEW) |
+| `packages/arc-cli/src/dns/add.ts` | création (NEW) |
+| `packages/arc-cli/src/dns/add.test.ts` | création (NEW) |
+| `packages/arc-cli/src/dns/list.ts` | création (NEW) |
+| `packages/arc-cli/src/dns/list.test.ts` | création (NEW) |
+| `packages/arc-cli/src/dns/remove.ts` | création (NEW) |
+| `packages/arc-cli/src/dns/remove.test.ts` | création (NEW) |
+| `packages/arc-cli/src/cli.ts` | modif (register 3 commands) |
+| `packages/arc-cli/README.md` | modif (section DNS commands) |
+
+⚠️ **10 fichiers** = au-dessus de la limite haute CLAUDE.md (« > 5 → STOP, demander confirmation »). Justifié par la nature « feature module CLI » (1 client + 3 commandes + 4 tests = strucutre minimale cohérente, pattern repris de `src/projects/`). Si la sous-tâche 2 déborde, je redécoupe en 2a (add seul) + 2b (list+remove). **Tu valides cette dérogation à 10 fichiers ?**
+
+## ADRs liés
+
+- **ADR-0001** — Monorepo Turborepo + pnpm workspaces.
+- **ADR-0002** — CLI : Bun + clipanion + zod, single binary via `bun build --compile`.
+- **ADR-0011** — Critères acceptance (DNS records ne sont pas critère explicite mais implicite pour `arc setup --apply` complet).
+- **ADR-0015** — Layout `~/.arc/credentials/`. `cloudflare.env` rejoint `r2.env` + `local-ai.env`.
+
+## Conventions à respecter
+
+- `coding-style.md` — TypeScript strict, **zéro `any`**, nommage `CamelCase` pour types/classes, `camelCase` pour functions/variables.
+- `testing.md` — Vitest, `vi.spyOn(globalThis, 'fetch')` pour HTTP (cohérent code existant `src/projects/coolify.ts`), pas de MSW.
+- `naming.md` — TASK-ID `[DNS-001]` dans tous les commits.
+- `pr-review.md` — 1 PR < 2h.
+
+## Hors scope (NE PAS faire)
+
+- Token Cloudflare réel obligatoire — mode `--dry-run` couvre les tests offline.
+- Smoke runtime (création réelle de records) — reporté à E2E-001.
+- Types DNS au-delà de A/CNAME/TXT (AAAA, MX, SRV, CAA…) — CLI gap futur.
+- `arc dns sync` déclaratif (input file → reconciliation) — CLI gap futur.
+- Records partagés entre plusieurs zones (auto-detection multi-zones) — pas en MVP.
+- Public Suffix List complet pour zone resolution — heuristique simple (last 2 labels, walk up) suffit pour MVP. CLI gap pour PSL si besoin.
+- Bulk operations (`arc dns add --from-file=*.csv`) — futur.
+- Webhooks Cloudflare ou listeners — out of scope CLI.
+- Intégration directe avec rôle Ansible — DNS-001 est CLI, pas Ansible. L'opérateur lance `arc dns add` après `arc setup --apply`.
+
+## Décisions actées avant code (cadrage 2026-05-07)
+
+### Décisions produit (D1-D5)
+
+- **D1** — Stockage token : `~/.arc/credentials/cloudflare.env` (KEY=VALUE, mode 0600). Cohérent avec `r2.env` / `local-ai.env`.
+- **D2** — Zone identification combinée : `CLOUDFLARE_ZONE_ID` (env file) si présent, sinon auto-discovery API via `GET /zones?name=<root>`.
+- **D3** — Types de records MVP : `A` + `CNAME` + `TXT` uniquement.
+- **D4** — Reconciliation impérative (pas de tracker de state local). `add` ne overwrite jamais sans `--force`. `--dry-run` partout.
+- **D5** — 3 commandes CLI MVP : `add`, `list`, `remove`. `sync` déclaratif → CLI gap.
+
+### Questions tranchées (Q-A, Q-B, Q-C)
+
+- **Q-A — Mode `--dry-run` partout** (option b décidée) : permet code + tests sans token réel maintenant. Smoke runtime reporté à E2E-001.
+- **Q-B — clipanion** confirmé : déjà `4.0.0-rc.4` dans `package.json`, pattern bien établi.
+- **Q-C — `vi.spyOn(globalThis, 'fetch')`** pour tests HTTP : cohérent code existant (`src/projects/coolify.ts`), zéro nouvelle dev-dependency. MSW = CLI gap futur si on multiplie les API externes.
+
+## Plan d'implémentation
+
+### Sous-tâche 1 : Client API + types Zod + erreurs ✅
+- Fichiers livrés : 4 dans `src/cloudflare/` (co-locés, pas `__tests__/`) — `errors.ts`, `types.ts`, `client.ts`, `client.test.ts`
+- Détail livré :
+  - **5 erreurs typées** (`errors.ts`) : `CloudflareApiError` base + `CloudflareAuthError` (401/403) + `CloudflareRateLimitError` (429) + `CloudflareNotFoundError` (404) + `CloudflareValidationError` (400). `override readonly cause` sur la base (anti-TS4114, leçon `a63ecd1`).
+  - **Schémas Zod** (`types.ts`) : `ZoneSchema` + `DnsRecordSchema` permissifs (Cloudflare ajoute des champs au fil du temps), `CreateDnsRecordSchema.strict()` pour input contrôlé. `CloudflareApiResponseSchema` pour valider l'envelope `{ success, errors, messages, result }`.
+  - **Class `CloudflareClient`** (`client.ts`) : 4 méthodes (`listZones`, `listDnsRecords`, `createDnsRecord`, `deleteDnsRecord`) + `private request()` centralisant fetch + JSON parsing + envelope validation + HTTP→error mapping. `baseUrl` overridable via `opts.baseUrl ?? process.env.CLOUDFLARE_API_BASE_URL ?? DEFAULT`.
+  - **5 tests Vitest** (`client.test.ts`) avec `vi.spyOn(globalThis, "fetch")` : 1 success (`listZones`) + 4 mappings d'erreur (401→Auth, 429→RateLimit, 404→NotFound, 400→Validation).
+  - `loadCloudflareCredentials()` déféré à sous-tâche 2 (cohérent avec LIVRABLES 4 fichiers).
+  - 2 itérations Biome formatter (compactage signatures multi-lignes via `pnpm lint:fix`).
+- Validation : `pnpm test` 144 → **149 verts**. `pnpm lint` clean. `pnpm typecheck` OK.
+
+### Sous-tâche 2 : Commandes CLI add/list/remove + register
+- Fichiers : `src/dns/add.ts` (NEW) + `src/dns/list.ts` (NEW) + `src/dns/remove.ts` (NEW) + 3 tests + `src/cli.ts` (modif)
+- Effort estimé : ~40 min
+- Détail :
+  - **`arc dns add <name>`** : clipanion `Command` class. Options : `--type` (A/CNAME/TXT), `--content`, `--ttl=auto` (défaut 1 = auto), `--proxied` (boolean), `--force`, `--dry-run`. Flow : `loadCloudflareCredentials` → resolve zone (env ZONE_ID > auto-discovery) → `listRecords` filter par name+type → if collision et pas `--force` : `CloudflareRecordExistsError`. Sinon `createRecord` (sauf `--dry-run` qui print).
+  - **`arc dns list`** : Options : `--zone`, `--type`, `--name`. Flow : credentials → zone → `listRecords` → output table (`type | name | content | ttl | proxied`).
+  - **`arc dns remove <name>`** : Options : `--type`, `--content` (disambiguation si plusieurs records), `--force` (skip confirmation interactive future), `--dry-run`. Flow : credentials → zone → `listRecords` → match name+type+content → `deleteRecord` (sauf `--dry-run`).
+  - **`src/cli.ts`** : `cli.register(DnsAddCommand); cli.register(DnsListCommand); cli.register(DnsRemoveCommand);` (3 lignes après les autres `register`).
+  - **Tests** : ~6 tests (2 par commande) — dry-run path (no fetch call) + happy path mocké (vi.spyOn fetch).
+
+### Sous-tâche 3 : Validation finale + README
+- Fichiers : `packages/arc-cli/README.md` (modif — section DNS) + scratchpad
+- Effort estimé : ~20 min
+- Détail :
+  - Run `pnpm test` → ~155 verts (144 + 11 nouveaux).
+  - Run `pnpm lint && pnpm typecheck` → verts.
+  - Run `ansible-lint setup.yml roles/` → 0 violation maintenu (no impact, scope TS).
+  - **README enrichi** : section « DNS commands » avec format `cloudflare.env`, exemples `arc dns add foo.example.com --type=A --content=1.2.3.4 --dry-run`, `arc dns list --type=A`, `arc dns remove foo.example.com --type=A`, mention du mode `--dry-run` partout.
+  - Pré-archive : statut → 🟢, recap commits, bilan validation finale.
+
+## Notes pour E2E-001 (à lire au démarrage de E2E-001)
+
+- DNS-001 livre les commandes CLI en mode offline (`--dry-run` + tests mockés). E2E-001 valide :
+  - Récupération réelle des zones via `arc dns list --zone=<test-domain>` (token requis).
+  - Création réelle d'un record A test (ex: `e2e-test-<timestamp>.example.com → 1.2.3.4`) puis cleanup.
+  - Round-trip add → list (verify present) → remove → list (verify absent).
+  - Mode `--dry-run` ne touche jamais l'API (vérification : 0 appel HTTP via `tcpdump` ou Cloudflare audit log).
+  - Test des 3 erreurs : auth invalide, zone inconnue, record collision sans `--force`.
+
+## Scratchpad
+- _(empty — Claude met à jour pendant le travail)_
+
+## CLI gaps
+- **Headers normalization** dans `CloudflareClient.request()` : actuellement `{ ...init.headers }` assume un plain object. Si un appelant passe `new Headers(...)` ou un tuple `[[k,v]]`, le spread silently ignore. Fragile à long terme. À durcir si on étend les usages ou si on ajoute un middleware/interceptor.
+- **DNS-001 livré sans token Cloudflare réel**. Validation runtime (création réelle d'un record A/CNAME/TXT et cleanup) reportée à E2E-001.
+- **`arc dns sync` déclaratif** (input file YAML/JSON → reconciliation propre vs. records actuels) — futur, scope CLI gap si demande user.
+- **Public Suffix List** pour zone resolution robuste (test.s3.amazonaws.com vs example.co.uk vs example.com) — heuristique simple en MVP (last 2 labels, walk up). CLI gap si besoin domaines complexes.
+- **Types DNS étendus** (AAAA, MX, SRV, CAA, TLSA…) — MVP A/CNAME/TXT seulement. Étendre si demande user.
+- **Bulk operations** (`arc dns add --from-file=*.csv`) — futur.
+- **MSW (Mock Service Worker)** comme alternative à `vi.spyOn(globalThis, 'fetch')` si on multiplie les API externes (DNS + GitHub + Cloudflare R2 admin + ...). Choisi `vi.spyOn` en MVP pour zéro dette.
+- **Hérités d'001a/b/c (12 entrées)** à traiter au moment opportun — cf. `tasks/completed/2026-05-07-ANSIBLE-001c.md`.
