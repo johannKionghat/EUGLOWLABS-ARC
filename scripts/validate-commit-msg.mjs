@@ -9,7 +9,7 @@ import { argv, exit, stderr, stdout } from "node:process";
 
 const TYPES = ["feat", "fix", "refactor", "chore", "docs", "test", "spike"];
 const COMMIT_REGEX = new RegExp(
-  `^(${TYPES.join("|")})(\\([a-z0-9-]+\\))?: .+ \\[[A-Z]+-\\d+[a-z]?\\]( \\(#\\d+\\))?$`,
+  `^(${TYPES.join("|")})(\\([a-z0-9-]+\\))?: .+ \\[[A-Z][A-Z0-9]*-\\d+[a-z]?\\]( \\(#\\d+\\))?$`,
 );
 const BYPASS_PREFIXES = ["Merge ", "Revert ", "fixup!", "squash!", "amend!"];
 
@@ -40,7 +40,7 @@ stderr.write(
     "",
     `  Allowed types : ${TYPES.join(", ")}`,
     "  Scope         : optional, lowercase kebab-case (e.g. cli, agent, dashboard)",
-    "  TASK-ID       : required, format SCOPE-NNN[a-z]? (e.g. CLI-042, ANSIBLE-001a)",
+    "  TASK-ID       : required, format SCOPE-NNN[a-z]? (e.g. CLI-042, ANSIBLE-001a, E2E-001)",
     "",
     "  Examples:",
     "    feat(cli): add deploy command [CLI-042]",
