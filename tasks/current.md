@@ -122,9 +122,20 @@ Cette tâche est la dernière brique infra avant E2E-001 — elle débloquera le
   - 1 itération formatter Biome (compactage signatures + non-null assertion → destructuring `[target, ...others]`).
 - Validation : `pnpm test` 149 → **160 verts** (+11). `pnpm lint` clean. `pnpm typecheck` OK.
 
-#### Phase B — add (collision detection + --force) ⏳
-- Fichiers à venir : `src/commands/dns/add.ts` + `.test.ts`, `src/cli.ts` (register add).
-- Logique : `loadCloudflareCredentials` → resolve zone → `listRecords` filter → si collision et pas `--force` : `CloudflareRecordExistsError`. Sinon `createRecord` (sauf `--dry-run`). Validation TTL (auto / >=60). Validation proxied + type=TXT incompatible.
+#### Phase B — add (collision detection + --force) ✅
+- Fichiers livrés : `src/commands/dns/add.ts` + `.test.ts`, `src/cli.ts` (register add), `src/commands/dns/test-helpers.ts` (NEW — extraction des duplicats `tempCreds` / `run` / `mockJson`), `src/commands/dns/list.test.ts` + `remove.test.ts` (refactor — import depuis test-helpers).
+- Détail livré :
+  - `DnsAddCommand` : positional `<name>` + `--type`/`--content` (required), `--ttl`/`--comment`/`--proxied`/`--force`/`--dry-run`/`--zone`/`--credentials`.
+  - Validation : type via `DnsRecordTypeSchema.safeParse`, TTL `1` ou `60..86400`, `--proxied` incompatible avec `TXT`.
+  - Collision : `listDnsRecords(name+type)` → si match sans `--force` : multi-line error avec 3 suggestions (replace/remove/list).
+  - `--force` : delete-then-create loop sur `existing` (gère `existing.length > 1`).
+  - Default comment `"managed-by:arc"`, `--comment=""` omit, `--comment=X` use X.
+  - Output : `Created` ou `Replaced ... (deleted previous record id: ...)`.
+  - Factor `test-helpers.ts` : ferme le CLI gap Phase A « 3e duplication tempCreds ».
+  - 2 itérations Biome (`useTemplate` + `noUnusedTemplateLiteral` sur l'erreur multi-line → consolidée en 1 seule template literal).
+- Validation : `pnpm test` 160 → **164 verts** (+4). `pnpm lint` clean. `pnpm typecheck` OK.
+
+### Sous-tâche 2 ✅ COMPLÈTE (Phase A + Phase B)
 
 ### Sous-tâche 3 : Validation finale + README
 - Fichiers : `packages/arc-cli/README.md` (modif — section DNS) + scratchpad
@@ -149,6 +160,8 @@ Cette tâche est la dernière brique infra avant E2E-001 — elle débloquera le
 - _(empty — Claude met à jour pendant le travail)_
 
 ## CLI gaps
+- **Validation Zod côté input client** : si `arc dns add` accepte plus tard un input externe (YAML/JSON via flag `--from-file`), valider via `CreateDnsRecordSchema.parse()` avant POST côté `client.createDnsRecord()`. Aujourd'hui les inputs viennent uniquement des flags clipanion (string-typed), validation manuelle suffit.
+- **Distribution sans test code** : si on veut zero test code dans le binaire `arc` final, ajouter pattern exclude `**/{test-helpers,*.test}.ts` dans le `tsconfig` de build (séparer typecheck vs build configs). Aujourd'hui `test-helpers.ts` est compilé dans `dist/` mais tree-shaken par `bun build --compile`.
 - **`--force` sur `remove`** : retiré en MVP (no-op = false promesse, scope creep). Quand confirmation interactive sera ajoutée à `arc dns remove`, introduire `--force` pour skipper le prompt.
 - **Test helper `tempCreds()` dupliqué** : présent dans `list.test.ts` + `remove.test.ts`. Si Phase B ajoute une 3e duplication dans `add.test.ts`, factoriser en helper partagé (ex: `src/commands/dns/_test-helpers.ts`).
 - **Table layout `padEnd(38/35)`** : misalignment sur noms > 38 chars ou content > 35 chars (longs TXT, longs subdomains). Switch `cli-table3` ou colonnes dynamiques si demande utilisateur.

@@ -1,46 +1,10 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { PassThrough } from "node:stream";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { runFromArgs } from "../../cli.js";
-
-function tempCreds(content: string): string {
-  const dir = mkdtempSync(join(tmpdir(), "arc-dns-list-"));
-  const path = join(dir, "cloudflare.env");
-  writeFileSync(path, content, { mode: 0o600 });
-  return path;
-}
-
-interface RunResult {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-}
-
-async function run(args: readonly string[]): Promise<RunResult> {
-  const stdout = new PassThrough();
-  const stderr = new PassThrough();
-  const stdoutChunks: Buffer[] = [];
-  const stderrChunks: Buffer[] = [];
-  stdout.on("data", (c: Buffer) => stdoutChunks.push(c));
-  stderr.on("data", (c: Buffer) => stderrChunks.push(c));
-  const exitCode = await runFromArgs(args, { stdout, stderr });
-  return {
-    exitCode,
-    stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-    stderr: Buffer.concat(stderrChunks).toString("utf8"),
-  };
-}
+import { mockJson, run, tempCreds } from "./test-helpers.js";
 
 function mockListRecordsOk(records: unknown[]): void {
   vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-    new Response(JSON.stringify({ success: true, errors: [], messages: [], result: records }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }),
+    mockJson({ success: true, errors: [], messages: [], result: records }),
   );
 }
 
