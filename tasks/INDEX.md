@@ -86,7 +86,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ✅ ANSIBLE-001a — Skeleton `playbooks/roles/` + rôles `hardening` (UFW + fail2ban + SSH key-only + unattended-upgrades) + `docker` (Engine + Compose v2 + groupe user) (2026-05-06) *(découpée d'ANSIBLE-001 le 2026-05-05)*
 - ✅ ANSIBLE-001b — Rôles `coolify` (install via compose officiel pinné v4.0.0, ADR-0005) + `ai-stack` (clone `local-ai-packaged` @ SHA pinné, `start_services.py` orchestration) (2026-05-07)
 - ✅ ANSIBLE-001c — Rôles `sandbox` (3 réseaux ADR-0008) + `backups` (rclone + cron + R2 crypt) + `setup.yml` final orchestrant les 6 rôles — Phase 1.5 Ansible complète (2026-05-07)
-- 🟡 DNS-001 — Cloudflare DNS records via API (A wildcard pointant sur l'IP publique de la machine)
+- ✅ DNS-001 — Cloudflare DNS records via API (3 commandes `arc dns add/list/remove`, `--dry-run` universel, auto-discovery zone, collision detection) (2026-05-07)
 - ⬜ E2E-001 — Test bout-en-bout sur VM jetable (CI nightly, ~0,02 €/run). **Critère d'acceptation supplémentaire (issu DOC-001)** : E2E-001 doit valider empiriquement les commandes critiques de `docs/migration-guide.md` (au minimum §1.a et §1.b) et `docs/install-without-public-ip.md` (au minimum §4 et §5). Toute commande qui échoue doit déclencher un patch DOC-001.
 
 ---
