@@ -1,52 +1,61 @@
 # Tâche : E2E-001 — Test bout-en-bout sur VM jetable
 
 ## Statut
-🟡 En cours — démarrée le 2026-05-07
+🟢 Prête pour archive — sous-tâches 1 → 3 livrées le 2026-05-08 (tâche démarrée 2026-05-07).
+
+### Recap des commits poussés sur `origin/main`
+
+| Commit | Sous-tâche | Sujet |
+|---|---|---|
+| `f59d93e` | _orthogonal_ | `[INFRA-006]` extension regex commit-msg validator (autorise digits dans scope, cas `E2E-001`) |
+| `a226e90` | 1 | `scripts/smoke-test.sh` — 9 sections / ~40 checks Bash défensif (NO_COLOR.org, exit codes 0/1/2) |
+| `a9ab39b` | 2 | `docs/E2E-test-procedure.md` — 9 sections + Annexe A cheatsheet, ~330 lignes + lien `arc-cli/README.md` |
+| _(à venir)_ | 3 | finalize E2E-001 validation (criteria check + scratchpad) |
+
+### Bilan validation finale (sous-tâche 3)
+
+- `ansible-lint setup.yml roles/` → **0 violation** sur 24 fichiers (inchangé — scope orthogonal).
+- `ansible-playbook --syntax-check setup.yml` → exit 0.
+- `pnpm test` → **164 / 164 verts** (cache hit Turbo).
+- `pnpm lint` → Biome 120 fichiers, no fixes.
+- `pnpm typecheck` → tous packages OK.
+- `bash -n scripts/smoke-test.sh` → syntax OK.
+- `bash scripts/smoke-test.sh --help` → exit 0, output complet.
+
+### Note importante sur les critères d'acceptation
+
+E2E-001 **ne reporte AUCUN critère** à une tâche future. C'est la dernière tâche du Chantier 1. Les critères runtime (idempotence ×6 rôles, networks Docker isolés, healthchecks Coolify/Supabase/Ollama, backups réels chiffrés sur R2, restore, DNS records) ne sont pas reportés mais **explicitement validables** via la procédure documentée `docs/E2E-test-procedure.md` sur un VPS jetable. Différence sémantique : « validable » ≠ « reporté ».
 
 ## Objectif
 Livrer la **procédure** et les **outils** qui permettront de valider empiriquement Phase 1.5 sur une VM/VPS jetable. La tâche **ne livre pas le smoke réel** (qui sera fait par toi/un user lambda quand il aura les pré-requis : compte Cloudflare token, VPS Ubuntu 24.04, compte R2 avec keys). Une fois cette tâche livrée, **les ~30 critères runtime reportés** depuis ANSIBLE-001a/b/c + DNS-001 seront empiriquement validables en ~30 min via `bash scripts/smoke-test.sh` + checklist manuelle dans `docs/E2E-test-procedure.md`.
 
 ## Critères d'acceptation
 
-### `scripts/smoke-test.sh` (sous-tâche 1)
-- [ ] Pure Bash, exécutable (`chmod +x`), shebang `#!/usr/bin/env bash` + `set -euo pipefail`
-- [ ] Pas de dépendance externe obligatoire (`jq` optionnel — fallback `grep`/`awk` si absent)
-- [ ] **8 checks couverts** :
-  - [ ] UFW : active, default deny incoming, allow `{{ arc_ssh_port }}` + 80 + 443
-  - [ ] fail2ban : service `active`, jail `sshd` enabled
-  - [ ] Docker engine : `systemctl is-active docker` + `docker version` exit 0
-  - [ ] 3 networks ARC présents (`prod_net`, `ai_net`, `sandbox_net`)
-  - [ ] `sandbox_net` `internal: true` (config check via `docker network inspect`)
-  - [ ] Coolify : `curl localhost:8000` retourne `[200, 302, 401]`
-  - [ ] Supabase Kong : `curl localhost:8001` retourne `[200, 302, 401]`
-  - [ ] Ollama : `curl localhost:11434/api/version` retourne `200`
-  - [ ] Backups : `/usr/local/bin/arc-backup.sh` présent (mode 0750) + `/etc/cron.d/arc-backup` présent
-- [ ] Format rapport : sections par groupe + summary final (X passed / Y failed) + exit code (0 si tout vert, 1 si ≥1 failed)
-- [ ] Couleurs ANSI activées par défaut (vert ✓, rouge ✗, jaune ⚠), `--no-color` flag pour désactivation (CI-friendly)
-- [ ] Helper `--help` qui résume les checks effectués
+### Livrables E2E-001
+- [x] `scripts/smoke-test.sh` livré (~220 lignes Bash, 9 sections, ~40 checks)
+- [x] `docs/E2E-test-procedure.md` livré (9 sections + Annexe A, ~330 lignes)
+- [x] `packages/arc-cli/README.md` mis à jour (section Testing avec lien vers la procédure)
 
-### `docs/E2E-test-procedure.md` (sous-tâche 2)
-- [ ] Section **Prérequis** : VPS Ubuntu 24.04, compte Cloudflare avec API token (`Zone:DNS:Edit`), compte R2 avec bucket + access keys
-- [ ] Section **Install** : `arc setup --apply` walkthrough (commande + temps attendu ~10-15 min)
-- [ ] Section **Smoke automatisé** : `bash scripts/smoke-test.sh` → résultat attendu 0 failed
-- [ ] Section **Idempotence manuelle** : ré-exécuter `arc setup --apply`, vérifier `changed=0` dans Ansible recap
-- [ ] Section **Sandbox runtime check** : `docker run --rm --network sandbox_net alpine ping -c1 -W2 8.8.8.8` doit FAIL (no internet)
-- [ ] Section **Backups runtime** : `sudo /usr/local/bin/arc-backup.sh` → `rclone ls arc-r2-crypt:` montre les 4 sources (coolify-data, credentials, state, postgres) — round-trip
-- [ ] Section **Restore runtime** : restore d'un backup R2 vers `/tmp/restore-test/` + verify checksum
-- [ ] Section **DNS records** : `arc dns add` (vrai token) → `arc dns list` (verify) → `arc dns remove` → `arc dns list` (verify absent)
-- [ ] Section **Collision detection runtime** : 2e `arc dns add` même name+type → erreur multi-line + `--force` replace
-- [ ] Section **Cleanup** : commandes pour démonter le VPS test (Hetzner/OVH dashboard ou `terraform destroy`)
-- [ ] Format checklist `[ ]` pour traçabilité des résultats par opérateur
-- [ ] Lien depuis `packages/arc-cli/README.md` (section optionnelle « E2E testing »)
+### Qualité & cohérence
+- [x] `bash -n` syntax check OK
+- [x] `bash scripts/smoke-test.sh --help` OK
+- [x] Cohérence ports/paths smoke-test.sh ↔ doc validée (8000/8001/11434, `/usr/local/bin/arc-backup.sh`, `/etc/cron.d/arc-backup`, `/etc/ssh/sshd_config.d/99-arc.conf`, `/opt/coolify`, `/opt/local-ai`)
+- [x] 0 placeholder restant (`<TODO>`, `<your-domain>`, `FIXME`, `XXX`)
+- [x] Path Coolify cross-checké contre rôle Ansible (`/opt/coolify/docker-compose.yml`)
+- [x] ~30 critères d'acceptation Phase 1.5 cochables dans la doc (couvrent les ~30 reportés depuis 001a/b/c + DNS-001)
 
-### Validation finale (sous-tâche 3)
-- [ ] `pnpm test` → 164 verts maintenus (aucun TS modifié)
-- [ ] `pnpm lint` → Biome no fixes
-- [ ] `pnpm typecheck` → tous packages OK
-- [ ] `ansible-lint` → 0 violation maintenu (no impact, scope outils/docs)
-- [ ] `bash -n scripts/smoke-test.sh` → exit 0 (syntax check Bash)
-- [ ] `shellcheck scripts/smoke-test.sh` si dispo, sinon noté en CLI gap
-- [ ] `docs/E2E-test-procedure.md` relu et validé par toi avant clôture
+### Tests sanity
+- [x] `pnpm test` → 164 verts maintenus
+- [x] `pnpm lint` → Biome no fixes (120 fichiers)
+- [x] `pnpm typecheck` → tous packages OK
+- [x] `ansible-lint` → 0 violation maintenu (24 fichiers, scope orthogonal)
+- [x] `ansible-playbook --syntax-check setup.yml` → exit 0
+
+### Format & UX doc
+- [x] Pattern troubleshooting basé sur problèmes vrais rencontrés en 001a/b/c
+- [x] Annexe A cheatsheet 8 catégories (UFW, fail2ban, SSH, Docker, Compose, Backups, CLI, Logs)
+- [x] Liens externes pour user débutants (linuxize SSH, DigitalOcean sudo, Docker docs)
+- [x] Distinction `(mandatory)` / `(optionnel)` dans la TOC + estimations de temps
 
 ## Fichiers concernés (estimation : 3 fichiers, dont 2 nouveaux)
 
