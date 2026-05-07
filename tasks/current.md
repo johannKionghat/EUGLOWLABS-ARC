@@ -124,17 +124,9 @@ Finaliser le playbook ARC en livrant les **deux derniers rôles infra** posés s
 - Effort estimé : ~30 min
 - Détail : `defaults` expose `arc_networks` (list de 3 dicts : `name`, `subnet`, `internal`, `labels`). `tasks` : `community.docker.docker_network` avec `loop: "{{ arc_networks }}"`, paramètres `name`, `driver: bridge`, `ipam_config[0].subnet: "{{ item.subnet }}"`, `internal: "{{ item.internal | default(false) }}"`, `labels: "{{ item.labels }}"`. Handler placeholder. Tags `[sandbox, network]`.
 
-### Sous-tâche 2 : Rôle `backups` (rclone + cron + script + config)
-- Fichiers : `playbooks/roles/backups/{tasks,handlers,defaults}/main.yml` + `templates/arc-backup.sh.j2` (NEW) + `templates/rclone.conf.j2` (NEW) + `playbooks/setup.yml` (append `backups`)
-- Effort estimé : ~40 min (tight — risque ~50 min si template script fragmenté)
-- Détail : `defaults` expose `arc_backup_schedule`, `arc_backup_retention_days`, `arc_backup_sources`, `arc_r2_*` (account_id, access_key_id, secret_access_key, bucket, crypt_password, crypt_salt). `tasks` :
-  1. apt install rclone (cohérent hardening pattern).
-  2. Stat `~/.arc/credentials/` (cohérent ai-stack pattern).
-  3. Conditional : skip rclone config + cron si R2 keys absentes (`when: arc_r2_access_key_id | length > 0`), avec `ansible.builtin.debug` warning.
-  4. Template `rclone.conf.j2` → `~/.arc/credentials/rclone.conf` (mode 0600).
-  5. Template `arc-backup.sh.j2` → `/usr/local/bin/arc-backup.sh` (mode 0755, root). Le script fait : `pg_dump` via `docker exec localai-db`, `rclone copy` des 3 sources vers crypt remote, rotation `find /opt/arc-backups -mtime +{{ retention }} -delete` (si on garde un staging local).
-  6. `ansible.builtin.cron` daily 3am sur le script.
-  Tags `[backups, install]`, `[backups, config]`, `[backups, schedule]`.
+### Sous-tâche 2 : Rôle `backups` ✅
+- Fichiers : `playbooks/roles/backups/{tasks,handlers,defaults}/main.yml` + 3 templates (`rclone.conf.j2`, `arc-backup.sh.j2`, `arc-backup.cron.j2`) + `playbooks/setup.yml` (append `backups`)
+- Détail livré : 9 vars defaults (7 backup-spécifiques + `arc_user`/`arc_credentials_dir` mirror). Tasks : apt install rclone universel, stat `r2.env` pivot, debug warning si absent (skip non-bloquant), block conditionnel avec 9 sub-tasks (slurp + parse loop-combine + 2× `rclone obscure` + dir + 3 templates + final debug). Encryption rclone crypt MANDATORY (passwords obscurcis). Auto-discovery container Postgres via Docker labels (pas hardcoded `supabase-db` — Compose v2 produit `localai-db-1`). Script 6 sections : Coolify data → ARC credentials → state.json → ai-stack Postgres → local cleanup → remote retention. Cron `/etc/cron.d/arc-backup` daily 3am. Tags `[backups, install/config/schedule]`. `no_log: true` sur 4 tasks sensibles.
 
 ### Sous-tâche 3 : setup.yml final + validation
 - Fichiers : `playbooks/setup.yml` (header final mis à jour) + `tasks/current.md` (scratchpad enrichi avec résultats validation)
@@ -158,6 +150,7 @@ Finaliser le playbook ARC en livrant les **deux derniers rôles infra** posés s
 - _(empty — Claude met à jour pendant le travail)_
 
 ## CLI gaps
+- **Container Postgres ai-stack auto-discovery** : le script de backup utilise `docker ps --filter label=com.docker.compose.project=localai --filter label=com.docker.compose.service=db` pour trouver le container. Si upstream `local-ai-packaged` change le naming convention ou les labels Docker, le script silently passe en « warning + skip postgres ». Surveiller à chaque bump du SHA pinned.
 - **Pattern dual-network pour agents** : quand OpenClaw/DeepAgents seront déployés en containers, documenter le pattern dual-network (container attaché à `sandbox_net` + `ai_net`) pour les agents qui appellent Ollama mais doivent rester anti-exfiltration. Dans le compose : `networks: [sandbox_net, ai_net]`. Hors scope 001c.
 - Backup du Postgres Coolify non couvert en 001c (cadrage B2 = ai-stack postgres uniquement). À ajouter en 001c-bis ou nouvelle tâche dédiée si Coolify accumule des données critiques.
 - Bridge entre Coolify network / local-ai-packaged networks et les 3 networks ARC (`prod_net`, `ai_net`, `sandbox_net`) non fait en 001c. Les services Coolify et AI tournent dans leurs propres networks internes pour l'instant. Bridge nécessitera des compose overrides côté coolify/ai-stack rôles ou un hook sandbox.

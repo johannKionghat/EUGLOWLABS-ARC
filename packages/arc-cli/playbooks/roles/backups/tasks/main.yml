@@ -1,0 +1,149 @@
+---
+# backups role — task entry point.
+#
+# Policy (ANSIBLE-001c sub-task 2) :
+#  - Install rclone via apt (cohérent hardening/docker pattern).
+#  - r2.env est créé MANUELLEMENT par l'opérateur sous {{ arc_credentials_dir }}/r2.env.
+#    Si absent ou arc_backup_enabled=false, le rôle skip config/script/cron avec
+#    un warning prominent (PAS de fail).
+#  - Si présent : génère rclone.conf (passwords obscurcis via `rclone obscure`),
+#    arc-backup.sh, /etc/cron.d/arc-backup. Pas de magie — l'opérateur fournit
+#    les 6 KEY=VALUE dans r2.env (mode 0600), Ansible les slurp + parse.
+#  - Encryption rclone crypt remote MANDATORY : tous les chemins passent par
+#    `arc-r2-crypt`, jamais par `arc-r2` directement (zéro blob non chiffré sur R2).
+#  - Idempotent : second run = changed=0 si r2.env n'a pas changé.
+
+- name: Install rclone (apt)
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags: [backups, install]
+
+- name: Stat r2.env (gating pivot — skip remaining if absent)
+  ansible.builtin.stat:
+    path: "{{ arc_backup_r2_credentials_file }}"
+  register: arc_r2_env_stat
+  become: false
+  tags: [backups, config]
+
+- name: Warn loudly if r2.env missing or backups disabled
+  ansible.builtin.debug:
+    msg: |
+      ⚠️  ARC backups SKIPPED.
+      Reason: {{ 'r2.env missing at ' + arc_backup_r2_credentials_file
+                 if not arc_r2_env_stat.stat.exists
+                 else 'arc_backup_enabled is false' }}.
+
+      To activate backups:
+        1. Create {{ arc_backup_r2_credentials_file }} (mode 0600, owned by {{ arc_user }})
+           with 6 KEY=VALUE entries:
+             ARC_R2_ACCESS_KEY_ID=<your R2 access key>
+             ARC_R2_SECRET_ACCESS_KEY=<your R2 secret>
+             ARC_R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+             ARC_R2_BUCKET=arc-backup-<host>
+             ARC_R2_CRYPT_PASSWORD=<32+ chars random>
+             ARC_R2_CRYPT_SALT_PASSWORD=<32+ chars random>
+        2. Re-run `arc setup --apply`.
+
+      rclone is installed and ready — only config/script/cron are deferred.
+  when: not arc_r2_env_stat.stat.exists or not arc_backup_enabled
+  tags: [backups, config]
+
+- name: Configure backups (gated on r2.env present + arc_backup_enabled)
+  when: arc_r2_env_stat.stat.exists and arc_backup_enabled
+  tags: [backups, config]
+  block:
+    - name: Read r2.env contents
+      ansible.builtin.slurp:
+        src: "{{ arc_backup_r2_credentials_file }}"
+      register: arc_r2_env_raw
+      become: false
+
+    - name: Parse r2.env into arc_r2_env (loop-combine, skips comments + blanks)
+      ansible.builtin.set_fact:
+        arc_r2_env: >-
+          {{ arc_r2_env | default({}) | combine({
+               (item | regex_replace('=.*$', '')):
+               (item | regex_replace('^[^=]+=', ''))
+             }) }}
+      loop: "{{ (arc_r2_env_raw.content | b64decode).splitlines() }}"
+      when: item is match('^[A-Z_][A-Z0-9_]*=.+$')
+      loop_control:
+        label: "{{ item | regex_replace('=.*$', '') }}"
+      no_log: true
+
+    - name: Obscure rclone crypt password
+      ansible.builtin.command: "rclone obscure {{ arc_r2_env.ARC_R2_CRYPT_PASSWORD }}"
+      register: arc_r2_crypt_password_obscured
+      changed_when: false
+      no_log: true
+
+    - name: Obscure rclone crypt salt password
+      ansible.builtin.command: "rclone obscure {{ arc_r2_env.ARC_R2_CRYPT_SALT_PASSWORD }}"
+      register: arc_r2_crypt_salt_obscured
+      changed_when: false
+      no_log: true
+
+    - name: Ensure /root/.config/rclone/ exists (root-scoped, 0700)
+      ansible.builtin.file:
+        path: /root/.config/rclone
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Deploy rclone.conf (arc-r2 + arc-r2-crypt remotes)
+      ansible.builtin.template:
+        src: rclone.conf.j2
+        dest: /root/.config/rclone/rclone.conf
+        owner: root
+        group: root
+        mode: '0600'
+      no_log: true
+
+    - name: Ensure log directory exists
+      ansible.builtin.file:
+        path: "{{ arc_backup_log_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags: [backups, install]
+
+    - name: Deploy arc-backup.sh script
+      ansible.builtin.template:
+        src: arc-backup.sh.j2
+        dest: "{{ arc_backup_script_path }}"
+        owner: root
+        group: root
+        mode: '0750'
+
+    - name: Deploy /etc/cron.d/arc-backup
+      ansible.builtin.template:
+        src: arc-backup.cron.j2
+        dest: "{{ arc_backup_cron_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+      tags: [backups, schedule]
+
+    - name: Display backups summary + manual test commands
+      ansible.builtin.debug:
+        msg: |
+          ✅ ARC backups active.
+            Schedule       : {{ arc_backup_schedule }} (cron)
+            Script         : {{ arc_backup_script_path }}
+            Log dir        : {{ arc_backup_log_dir }}
+            Retention      : {{ arc_backup_retention_days }} days (local + remote)
+            rclone config  : /root/.config/rclone/rclone.conf
+            Encryption     : MANDATORY via arc-r2-crypt remote (no plaintext on R2)
+
+          Manual test:
+            sudo {{ arc_backup_script_path }}
+            sudo tail -f {{ arc_backup_log_dir }}/backup-*.log
+
+          Inspect remote:
+            sudo rclone ls arc-r2-crypt:           # decrypted view
+            sudo rclone ls arc-r2:                 # raw encrypted view (filenames opaque)

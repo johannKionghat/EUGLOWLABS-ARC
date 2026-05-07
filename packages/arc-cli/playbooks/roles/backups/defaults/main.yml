@@ -1,0 +1,37 @@
+---
+# backups role — default variables.
+
+# Whether the role configures backups. If false, the role still installs rclone
+# but skips config/script/cron deployment.
+arc_backup_enabled: true
+
+# Cron schedule for the backup script. Default daily 3am (server local time).
+arc_backup_schedule: "0 3 * * *"
+
+# Retention in days for both local logs and remote backup blobs.
+arc_backup_retention_days: 30
+
+# Path to the operator-managed credentials file. Format (KEY=VALUE):
+#   ARC_R2_ACCESS_KEY_ID=...
+#   ARC_R2_SECRET_ACCESS_KEY=...
+#   ARC_R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+#   ARC_R2_BUCKET=arc-backup-<host>
+#   ARC_R2_CRYPT_PASSWORD=<32+ chars random>
+#   ARC_R2_CRYPT_SALT_PASSWORD=<32+ chars random>
+# The file MUST be created manually (mode 0600, owned by arc_user). If absent
+# or arc_backup_enabled=false, the role skips config/script/cron with a warning.
+arc_backup_r2_credentials_file: "{{ arc_credentials_dir }}/r2.env"
+
+# Where the generated backup script is installed.
+arc_backup_script_path: "/usr/local/bin/arc-backup.sh"
+
+# Where the cron entry is installed (one file per role per /etc/cron.d/ convention).
+arc_backup_cron_file: "/etc/cron.d/arc-backup"
+
+# Where the script writes its execution logs.
+arc_backup_log_dir: "/var/log/arc"
+
+# arc_user mirrored from hardening/docker/ai-stack roles. Same expression for
+# determinism across become contexts.
+arc_user: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER'), true) }}"
+arc_credentials_dir: "{{ '/root' if arc_user == 'root' else '/home/' + arc_user }}/.arc/credentials"

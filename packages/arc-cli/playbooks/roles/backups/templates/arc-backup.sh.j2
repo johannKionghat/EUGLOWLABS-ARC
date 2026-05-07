@@ -1,0 +1,61 @@
+#!/bin/bash
+# Managed by ARC (ANSIBLE-001c, backups role).
+# DO NOT EDIT — overwritten on next `arc setup --apply`.
+#
+# Daily backup script (run via /etc/cron.d/arc-backup at {{ arc_backup_schedule }}).
+# Encrypts via rclone crypt remote → no plaintext on R2.
+
+set -euo pipefail
+
+TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
+LOG_DIR="{{ arc_backup_log_dir }}"
+LOG_FILE="${LOG_DIR}/backup-${TIMESTAMP}.log"
+RETENTION_DAYS={{ arc_backup_retention_days }}
+
+mkdir -p "${LOG_DIR}"
+exec > >(tee -a "${LOG_FILE}") 2>&1
+
+echo "=== ARC backup starting (${TIMESTAMP} UTC) ==="
+
+# 1. Coolify data (compose volumes + projects)
+echo "[1/6] Sync /opt/coolify/data → arc-r2-crypt:coolify-data"
+rclone sync /opt/coolify/data arc-r2-crypt:coolify-data --transfers=4
+
+# 2. ARC user-scoped credentials (rclone.conf, local-ai.env, r2.env, …)
+echo "[2/6] Sync {{ arc_credentials_dir }} → arc-r2-crypt:credentials"
+rclone sync {{ arc_credentials_dir }} arc-r2-crypt:credentials --transfers=4
+
+# 3. ARC state.json snapshot (versioned by timestamp)
+STATE_FILE="{{ '/root' if arc_user == 'root' else '/home/' + arc_user }}/.arc/state.json"
+if [ -f "${STATE_FILE}" ]; then
+  echo "[3/6] Snapshot state.json"
+  rclone copyto "${STATE_FILE}" "arc-r2-crypt:state/state-${TIMESTAMP}.json"
+else
+  echo "[3/6] state.json not found at ${STATE_FILE} — skipping"
+fi
+
+# 4. Postgres dump from ai-stack (auto-discover container by Docker compose labels)
+echo "[4/6] pg_dumpall ai-stack → arc-r2-crypt:postgres/postgres-${TIMESTAMP}.sql.gz"
+DB_CONTAINER="$(docker ps \
+  --filter 'label=com.docker.compose.project=localai' \
+  --filter 'label=com.docker.compose.service=db' \
+  --format '{{ '{{' }}.Names{{ '}}' }}' | head -1)"
+
+if [ -z "${DB_CONTAINER}" ]; then
+  echo "[4/6] WARNING — localai db container not found, skipping postgres backup"
+else
+  echo "[4/6] Using container: ${DB_CONTAINER}"
+  docker exec -i "${DB_CONTAINER}" pg_dumpall -U postgres \
+    | gzip \
+    | rclone rcat "arc-r2-crypt:postgres/postgres-${TIMESTAMP}.sql.gz"
+fi
+
+# 5. Local log cleanup (older than retention)
+echo "[5/6] Cleanup local logs older than ${RETENTION_DAYS}d"
+find "${LOG_DIR}" -type f -name 'backup-*.log' -mtime "+${RETENTION_DAYS}" -delete
+
+# 6. Remote retention (older than retention, encrypted side)
+echo "[6/6] Cleanup remote backups older than ${RETENTION_DAYS}d"
+rclone delete arc-r2-crypt: --min-age "${RETENTION_DAYS}d" --rmdirs
+
+echo "=== ARC backup completed ==="

@@ -1,0 +1,6 @@
+# Managed by ARC (ANSIBLE-001c, backups role).
+# DO NOT EDIT — overwritten on next `arc setup --apply`.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+{{ arc_backup_schedule }} root {{ arc_backup_script_path }} >> {{ arc_backup_log_dir }}/cron.log 2>&1

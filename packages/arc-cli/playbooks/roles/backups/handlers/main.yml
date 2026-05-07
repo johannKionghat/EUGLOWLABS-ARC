@@ -1,0 +1,4 @@
+---
+# backups role — handlers.
+# Sub-task 2: no handler needed — cron picks up /etc/cron.d/arc-backup automatically
+# on file change (no daemon restart required).

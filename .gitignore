@@ -36,6 +36,9 @@ credentials.json
 # State & generated
 .infra/
 backups/
+# …except the Ansible backups role (ANSIBLE-001c).
+!packages/arc-cli/playbooks/roles/backups/
+!packages/arc-cli/playbooks/roles/backups/**
 
 # Coverage & test artifacts
 coverage/

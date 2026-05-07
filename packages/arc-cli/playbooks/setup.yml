@@ -2,11 +2,10 @@
 # ARC setup playbook — Phase 1.5 (PARTIAL).
 #
 # Status:
-#   ANSIBLE-001a (livré)              : `hardening`, `docker`
-#   ANSIBLE-001b (livré)              : `coolify`, `ai-stack`
-#   ANSIBLE-001c sub-task 1 (livré)   : `sandbox` (3 networks ADR-0008)
-# Rôles à venir :
-#   - 001c sub-task 2 : `backups` (rclone + cron + R2 crypt remote)
+#   ANSIBLE-001a (livré)               : `hardening`, `docker`
+#   ANSIBLE-001b (livré)               : `coolify`, `ai-stack`
+#   ANSIBLE-001c sub-tasks 1+2 (livré) : `sandbox`, `backups`
+# Sub-task 3 (validation finale) à suivre. Phase 1.5 Ansible quasi-complète.
 #
 # Run model (ADR-0012) : single-machine, executed in `localhost` by the user
 # running `arc setup --apply`. Privilege escalation is global to the play
@@ -52,3 +51,4 @@
     - coolify
     - ai-stack
     - sandbox
+    - backups

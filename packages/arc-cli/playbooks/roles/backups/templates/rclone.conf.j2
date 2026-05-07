@@ -1,0 +1,17 @@
+# Managed by ARC (ANSIBLE-001c, backups role).
+# DO NOT EDIT — overwritten on next `arc setup --apply`.
+# Source of truth: {{ arc_backup_r2_credentials_file }} (operator-managed).
+
+[arc-r2]
+type = s3
+provider = Cloudflare
+access_key_id = {{ arc_r2_env.ARC_R2_ACCESS_KEY_ID }}
+secret_access_key = {{ arc_r2_env.ARC_R2_SECRET_ACCESS_KEY }}
+endpoint = {{ arc_r2_env.ARC_R2_ENDPOINT }}
+acl = private
+
+[arc-r2-crypt]
+type = crypt
+remote = arc-r2:{{ arc_r2_env.ARC_R2_BUCKET }}
+password = {{ arc_r2_crypt_password_obscured.stdout }}
+password2 = {{ arc_r2_crypt_salt_obscured.stdout }}
