@@ -110,14 +110,21 @@ Cette tâche est la dernière brique infra avant E2E-001 — elle débloquera le
 - Validation : `pnpm test` 144 → **149 verts**. `pnpm lint` clean. `pnpm typecheck` OK.
 
 ### Sous-tâche 2 : Commandes CLI add/list/remove + register
-- Fichiers : `src/dns/add.ts` (NEW) + `src/dns/list.ts` (NEW) + `src/dns/remove.ts` (NEW) + 3 tests + `src/cli.ts` (modif)
-- Effort estimé : ~40 min
-- Détail :
-  - **`arc dns add <name>`** : clipanion `Command` class. Options : `--type` (A/CNAME/TXT), `--content`, `--ttl=auto` (défaut 1 = auto), `--proxied` (boolean), `--force`, `--dry-run`. Flow : `loadCloudflareCredentials` → resolve zone (env ZONE_ID > auto-discovery) → `listRecords` filter par name+type → if collision et pas `--force` : `CloudflareRecordExistsError`. Sinon `createRecord` (sauf `--dry-run` qui print).
-  - **`arc dns list`** : Options : `--zone`, `--type`, `--name`. Flow : credentials → zone → `listRecords` → output table (`type | name | content | ttl | proxied`).
-  - **`arc dns remove <name>`** : Options : `--type`, `--content` (disambiguation si plusieurs records), `--force` (skip confirmation interactive future), `--dry-run`. Flow : credentials → zone → `listRecords` → match name+type+content → `deleteRecord` (sauf `--dry-run`).
-  - **`src/cli.ts`** : `cli.register(DnsAddCommand); cli.register(DnsListCommand); cli.register(DnsRemoveCommand);` (3 lignes après les autres `register`).
-  - **Tests** : ~6 tests (2 par commande) — dry-run path (no fetch call) + happy path mocké (vi.spyOn fetch).
+
+#### Phase A — credentials + list + remove ✅
+- Fichiers livrés : `src/cloudflare/credentials.ts` + `.test.ts`, `src/commands/dns/list.ts` + `.test.ts`, `src/commands/dns/remove.ts` + `.test.ts`, `src/cli.ts` (register list + remove).
+- Détail livré :
+  - `loadCloudflareCredentials()` : KEY=VALUE parser défensif sur `~/.arc/credentials/cloudflare.env`. Erreur `CloudflareCredentialsMissingError` si fichier absent ou token vide.
+  - `resolveZoneId()` : précédence `--zone` > `CLOUDFLARE_ZONE_ID` env > heuristique last-2-labels avec `find(z => z.name === candidate)` strict (défensif fuzzy API).
+  - `arc dns list` : table fixed-width par défaut (CLI gap padEnd noté), `--json` flag, filtres `--type` / `--name`, `--zone` override.
+  - `arc dns remove <name> --type=...` : `--dry-run` skip total (creds + API), `--content` disambiguation, refuse si 0 ou >1 match. Pas de `--force` en MVP (CLI gap noté).
+  - Tests via `runFromArgs()` pattern (cohérent `cli.test.ts`), `tempCreds()` helper local, `vi.spyOn(globalThis, "fetch")`.
+  - 1 itération formatter Biome (compactage signatures + non-null assertion → destructuring `[target, ...others]`).
+- Validation : `pnpm test` 149 → **160 verts** (+11). `pnpm lint` clean. `pnpm typecheck` OK.
+
+#### Phase B — add (collision detection + --force) ⏳
+- Fichiers à venir : `src/commands/dns/add.ts` + `.test.ts`, `src/cli.ts` (register add).
+- Logique : `loadCloudflareCredentials` → resolve zone → `listRecords` filter → si collision et pas `--force` : `CloudflareRecordExistsError`. Sinon `createRecord` (sauf `--dry-run`). Validation TTL (auto / >=60). Validation proxied + type=TXT incompatible.
 
 ### Sous-tâche 3 : Validation finale + README
 - Fichiers : `packages/arc-cli/README.md` (modif — section DNS) + scratchpad
@@ -142,6 +149,9 @@ Cette tâche est la dernière brique infra avant E2E-001 — elle débloquera le
 - _(empty — Claude met à jour pendant le travail)_
 
 ## CLI gaps
+- **`--force` sur `remove`** : retiré en MVP (no-op = false promesse, scope creep). Quand confirmation interactive sera ajoutée à `arc dns remove`, introduire `--force` pour skipper le prompt.
+- **Test helper `tempCreds()` dupliqué** : présent dans `list.test.ts` + `remove.test.ts`. Si Phase B ajoute une 3e duplication dans `add.test.ts`, factoriser en helper partagé (ex: `src/commands/dns/_test-helpers.ts`).
+- **Table layout `padEnd(38/35)`** : misalignment sur noms > 38 chars ou content > 35 chars (longs TXT, longs subdomains). Switch `cli-table3` ou colonnes dynamiques si demande utilisateur.
 - **Headers normalization** dans `CloudflareClient.request()` : actuellement `{ ...init.headers }` assume un plain object. Si un appelant passe `new Headers(...)` ou un tuple `[[k,v]]`, le spread silently ignore. Fragile à long terme. À durcir si on étend les usages ou si on ajoute un middleware/interceptor.
 - **DNS-001 livré sans token Cloudflare réel**. Validation runtime (création réelle d'un record A/CNAME/TXT et cleanup) reportée à E2E-001.
 - **`arc dns sync` déclaratif** (input file YAML/JSON → reconciliation propre vs. records actuels) — futur, scope CLI gap si demande user.

@@ -3,6 +3,8 @@ import type { BaseContext } from "clipanion";
 
 import { BackupCommand } from "./commands/backup.js";
 import { DeployCommand } from "./commands/deploy.js";
+import { DnsListCommand } from "./commands/dns/list.js";
+import { DnsRemoveCommand } from "./commands/dns/remove.js";
 import { HelpCommand } from "./commands/help.js";
 import { InitCommand } from "./commands/init.js";
 import { LogsCommand } from "./commands/logs.js";
@@ -43,6 +45,8 @@ export function buildCli(): Cli<BaseContext> {
   cli.register(ProjectListCommand);
   cli.register(ProjectDeployCommand);
   cli.register(TelemetryConfigCommand);
+  cli.register(DnsListCommand);
+  cli.register(DnsRemoveCommand);
 
   return cli;
 }
