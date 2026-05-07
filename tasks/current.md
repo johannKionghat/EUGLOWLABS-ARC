@@ -108,13 +108,17 @@ Livrer la **procédure** et les **outils** qui permettront de valider empiriquem
   - **Trap on EXIT** pour summary toujours imprimé même sur exit early.
 - Validation : `bash -n` exit 0, `--help` exit 0, `pnpm test` 164 verts maintenus, `pnpm lint` clean, `pnpm typecheck` OK, `ansible-lint` 0 violation maintenu, `shellcheck` non installé localement → CLI gap noté.
 
-### Sous-tâche 2 : `docs/E2E-test-procedure.md`
-- Fichiers : `docs/E2E-test-procedure.md` (NEW) + `packages/arc-cli/README.md` (lien optionnel)
-- Effort estimé : ~30 min
-- Détail :
-  - Sections (dans cet ordre) : Prérequis (VPS + Cloudflare + R2) → Install (`arc setup --apply` walkthrough) → Smoke automatisé (`bash scripts/smoke-test.sh` attendus) → **Idempotence manuelle** (re-run, vérifier `changed=0`) → **Sandbox runtime** (`docker run --network sandbox_net alpine ping` FAIL attendu) → **Backups runtime** (round-trip rclone) → **Restore runtime** (download + checksum) → **DNS records** (add/list/remove avec vrai token) → **Collision detection** (2e add même name+type) → Cleanup (démonter VPS).
-  - Format : checklist `[ ]` pour traçabilité par opérateur. Commandes copiables dans blocs ` ```bash `. Estimations de temps par section.
-  - Lien depuis `packages/arc-cli/README.md` (section « E2E testing » optionnelle).
+### Sous-tâche 2 : `docs/E2E-test-procedure.md` ✅
+- Fichiers livrés : `docs/E2E-test-procedure.md` (NEW, ~330 lignes Markdown) + `packages/arc-cli/README.md` (modif — section Testing avec lien)
+- Détail livré :
+  - **9 sections + Annexe A** : Prérequis (5 min) → Credentials (10 min, Cloudflare DNS + R2 + Ansible inv) → Install (mandatory, 30 min : `arc setup --apply` + PLAY RECAP + smoke-test + lecture rapport) → Idempotence (mandatory, 10 min, `changed=0` avec exception ai-stack tolérée) → DNS runtime (optionnel, 15 min, round-trip add/list/dig/remove + collision) → Backups runtime (optionnel, 15 min, trigger + rclone ls + restore Postgres jetable) → Critères d'acceptation (~30 cochables organisés par catégorie) → Cleanup (5 min) → Troubleshooting (3 sous-sections : erreurs Ansible, healthchecks HTTP, backup silent fail).
+  - **Annexe A — cheatsheet** : 8 sections de commandes (UFW, fail2ban, SSH, Docker, Compose Coolify+ai-stack, Backups rclone, CLI ARC DNS, Logs système).
+  - Format : pure ASCII, blocs `bash` copiables, format checklist `[ ]` pour traçabilité, estimations de temps par section, marqueurs `(mandatory)` / `(optionnel)` dans la TOC.
+  - Cible utilisateur intermédiaire (liens externes pour SSH/sudo/docker basics).
+  - Path Coolify confirmé `/opt/coolify/docker-compose.yml` cohérent avec rôle Ansible. CLI gap noté dans Annexe A (« à reconfirmer au runtime E2E réel »).
+  - Cohérence cross-vérifiée : ports (8000/8001/11434), paths (`/usr/local/bin/arc-backup.sh`, `/etc/cron.d/arc-backup`, etc.), variables (`ARC_SSH_PORT`) toutes alignées avec `scripts/smoke-test.sh`.
+  - 0 placeholder restant (`<TODO>`, `<your-domain>` etc.).
+- Validation : `pnpm test` 164 verts maintenus, lint clean, typecheck OK, `ansible-lint` 0 violation.
 
 ### Sous-tâche 3 : Validation finale + clôture
 - Fichiers : `tasks/current.md` (scratchpad)
@@ -138,6 +142,7 @@ Livrer la **procédure** et les **outils** qui permettront de valider empiriquem
 - _(empty — Claude met à jour pendant le travail)_
 
 ## CLI gaps
+- **Path Coolify compose à reconfirmer** : `docs/E2E-test-procedure.md` Annexe A et la procédure utilisent `/opt/coolify/docker-compose.yml` (cohérent rôle Ansible coolify, var `arc_coolify_install_dir`). Selon la version Coolify, certains setups stockent dans `/opt/coolify/source/docker-compose.yml`. À vérifier au premier smoke réel sur VPS — fix le doc + Annexe A si différent.
 - **UFW pattern matching** dans `smoke-test.sh` pourrait être plus tight (`^${PORT}/tcp\s+ALLOW`) — actuellement permissif (substring `${PORT}/tcp`). Cosmétique, faux positifs improbables.
 - **`arc setup --status` CLI native** futur : remplacer `bash scripts/smoke-test.sh` par `arc smoke` (commande TS) pour distribution cleaner. Hors MVP.
 - **`arc-smoke` command intégrée à la distribution** : transformer le bash script en commande clipanion (avec mêmes 9 sections + helpers). Évite le besoin d'avoir le repo cloné sur le VPS cible.

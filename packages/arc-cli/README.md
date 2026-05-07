@@ -83,3 +83,7 @@ arc dns remove foo.example.com --type=A --dry-run
 - **Collision on `add`**: if a record already exists for the same `name+type`, the command refuses with a multi-line error suggesting `--force` (replace), `arc dns remove` (clean up first), or `arc dns list` (inspect).
 - **`--force` on `add`** does delete-then-create (atomic ARC-side, no PATCH). Handles the rare case where Cloudflare returns multiple records for the same `name+type`.
 
+## Testing
+
+End-to-end smoke procedure for a freshly-installed ARC host (post `arc setup --apply`) is documented in [`docs/E2E-test-procedure.md`](../../docs/E2E-test-procedure.md). The companion [`scripts/smoke-test.sh`](../../scripts/smoke-test.sh) runs ~40 automated checks (hardening, Docker networks, Coolify/ai-stack endpoints, backups, CLI offline) in ~30 seconds.
+
