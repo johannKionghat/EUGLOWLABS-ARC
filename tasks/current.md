@@ -102,14 +102,16 @@ CLI gaps notés à traiter au moment opportun :
 - **Effort réel** : ~30 min
 - **Notes** : Diff validé par utilisateur avant écriture. Retouche cosmétique appliquée (concurrence séparée en outils sysadmin / runtimes packagés).
 
-### Sous-tâche 1a — Spike Bun embed playbooks + build standalone
-- **Statut** : 1a-1 ✅, 1a-2 ✅, 1a-3 ✅, 1a-4 ⬜, 1a-5 ⬜
+### Sous-tâche 1a — Spike Bun embed playbooks + build standalone ✅
+- **Statut** : COMPLÈTE — 5 sous-sous-tâches livrées, smoke binaire E2E validé localement
 - **Découpage interne livré** :
-  - **1a-1** ✅ Spike Bun embed (méthode B viable, ~50 KB cost) — `scripts/spike-bun-embed.mjs`
+  - **1a-1** ✅ Spike Bun embed (méthode B viable, ~50 KB cost)
   - **1a-2** ✅ Codegen + EmbeddedPlaybooksLoader (split en 2 commits `fa9b021` + `1cad8db`)
-  - **1a-3** ✅ `bun --define` injection version metadata + `formatVersion()` + `commands/version.ts` enrichi
-  - **1a-4** ⬜ Stub `arc upgrade` (~10 min)
-  - **1a-5** ⬜ Smoke binaire compilé E2E + suppression du spike script (~15 min)
+  - **1a-3** ✅ `bun --define` injection version metadata + `formatVersion()` + `commands/version.ts` enrichi (`ed59f27`)
+  - **1a-cleanup** ✅ URL pivot `install.euglowlabs.com` → `install-arc.euglowlabs.com` (`773ba6a`)
+  - **1a-4** ✅ Stub `arc upgrade` + ADR-0016 align `| sh` (`0876e8c`)
+  - **1a-5** ✅ Smoke binaire compilé E2E linux-x64 + suppression spike script — 4 commandes validées (--version, version, upgrade, setup --help) avec VERSION/SHA/DATE injectés réels (no fallback dev), playbooks embarqués confirmés via grep
+- **Cross-target validation** (linux-arm64, darwin-x64/arm64, windows-x64) reportée à **1f** (CI pipeline + git tag rc.1)
 
 ### Sous-tâche 1b — Réécriture install.sh
 - **Fichiers** : `packages/arc-cli/install.sh`
