@@ -113,12 +113,13 @@ CLI gaps notés à traiter au moment opportun :
   - **1a-5** ✅ Smoke binaire compilé E2E linux-x64 + suppression spike script — 4 commandes validées (--version, version, upgrade, setup --help) avec VERSION/SHA/DATE injectés réels (no fallback dev), playbooks embarqués confirmés via grep
 - **Cross-target validation** (linux-arm64, darwin-x64/arm64, windows-x64) reportée à **1f** (CI pipeline + git tag rc.1)
 
-### Sous-tâche 1b — Réécriture install.sh
-- **Fichiers** : `packages/arc-cli/install.sh`
-- **Effort estimé** : ~1h
-- **Détail** : Changer host `arc.euglowlabs.com` → `install-arc.euglowlabs.com`. Ajouter vérification SHA256 (download du `.sha256` puis `sha256sum -c`). Support `ARC_VERSION` pin (déjà partiellement présent). Garder fallback wget. Ajouter linting shellcheck en CI (job léger).
-- **Dépendances** : aucune (peut tourner en parallèle de 1a)
-- **Livrable** : install.sh testable manuellement avec `ARC_VERSION=v0.1.0-rc.1`
+### Sous-tâche 1b — Réécriture install.sh ✅
+- **Statut** : Terminée 2026-05-08
+- **Pivot acté** : Option A (POSIX `sh` strict, pas bash) pour éviter le bug runtime sur Ubuntu 24.04 où `/bin/sh = dash` ignore le shebang lors d'un `curl ... | sh`. Cohérent avec ADR-0016 §3 et `arc upgrade` message.
+- **Fichiers livrés** : `packages/arc-cli/install.sh` (REWRITE complet, ~190 lignes)
+- **Validations** : `bash -n` ✅, `dash -n` ✅ (POSIX validé), `shellcheck` pas dispo localement (gap noté)
+- **Smoke runtime** : reporté à 1f (nécessite GitHub Releases publiés + hosting Cloudflare Pages, livrés en 1c+1d)
+- **Effort réel** : ~1h
 
 ### Sous-tâche 1c — CI GitHub Actions release v2
 - **Fichiers** : `.github/workflows/release.yml` (nouveau, remplace `publish.yml` ou cohabite), `.github/workflows/publish.yml` (deprecate ou supprimer)
@@ -179,3 +180,6 @@ CLI gaps notés à traiter au moment opportun :
 - **Convention de nommage URLs install** : `install-<produit>.euglowlabs.com` strict (cf. ADR-0016 §3). Si plusieurs sous-domaines deviennent partagés (releases-arc, docs-arc, etc.), envisager un ADR séparé "EuglowLabs URL conventions" pour figer la convention noir-sur-blanc.
 - **Cleanup orthogonal `arc.euglowlabs.com/install.sh` à compléter en 1b/1e** : `README.md`, `docs/02-spec-arc-product.md`, `docs/03-architecture-decisions/0011-end-to-end-install-acceptance.md`, `docs/03-architecture-decisions/0012-single-machine-install.md`, `docs/04-conventions/naming.md`, `docs/migration-guide.md`, `tasks/INDEX.md` (entrée historique CLI-027) référencent encore `arc.euglowlabs.com/install.sh`. Ces références pré-DIST-001 doivent migrer vers `install-arc.euglowlabs.com` lors de la sous-tâche 1b (réécriture install.sh) ou 1e (sweep docs).
 - **Validation 1d Cloudflare** : configurer Cloudflare Pages pour `install-arc.euglowlabs.com` ET vérifier que `install.euglowlabs.com` (sans suffixe) reste libre/non-monopolisé (DNS non créé pour ce nom).
+- **install.sh + ARC_INSTALL_DIR dans `$HOME`** : edge case détecté en 1b — si l'utilisateur fait `curl ... | ARC_INSTALL_DIR=$HOME/.local/bin sh` depuis un compte non-root, le `$SUDO mv` produit un fichier owned `root:root` dans son propre `$HOME`. Ironique. Fix futur : skip sudo si `INSTALL_DIR` est sous `$HOME`. Pas blocker MVP.
+- **Shellcheck en CI** : `shellcheck install.sh` à ajouter au workflow GitHub Actions (sous-tâche 1c) ou en pre-commit hook lefthook. Validation locale impossible faute d'install.
+- **Vérifier docs/installation.md existe au tag** : le next-steps message d'`install.sh` link `docs/installation.md` (sera créé en 1e). Vérifier en 1f (avant `v0.1.0-rc.1`) que le fichier est bien présent sur `main`.
