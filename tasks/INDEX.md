@@ -95,7 +95,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 > Constat : CLI-025/026/027 marquées ✅ en Phase 1 mais le pipeline n'a jamais été bouclé (publish.yml en `workflow_dispatch`, zéro release publié, hosting absent, playbooks non embarqués). DIST-001 ferme le show-stopper.
 
-- 🟡 DIST-001 — Distribution & packaging ARC : ADR-0016 + binaire Bun standalone avec playbooks embed + install.sh + CI release `git tag v*.*.*` + hosting `install.euglowlabs.com` + docs + smoke E2E pipeline
+- 🟡 DIST-001 — Distribution & packaging ARC : ADR-0016 + binaire Bun standalone avec playbooks embed + install.sh + CI release `git tag v*.*.*` + hosting `install-arc.euglowlabs.com` + docs + smoke E2E pipeline
 - ⬜ DIST-002 — Cosign + Sigstore signing *(backlog post-Chantier-1)*
 - ⬜ DIST-003 — `arc self-update` auto-upgrade command *(backlog post-Chantier-1)*
 - ⬜ DIST-004 — Release darwin x64/arm64 + windows x64 *(backlog post-bêta, sur demande communauté)*

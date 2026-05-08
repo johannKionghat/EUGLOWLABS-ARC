@@ -1,10 +1,15 @@
 #!/usr/bin/env sh
 # EuglowLabs ARC CLI — install script.
-# Usage: curl -fsSL https://arc.euglowlabs.com/install.sh | sh
+# Usage: curl -fsSL https://install-arc.euglowlabs.com | sh
 #
 # Detects the OS / arch, downloads the matching binary from the
 # latest GitHub Release, and drops it in /usr/local/bin/arc (or
 # $ARC_INSTALL_DIR if set).
+#
+# Naming convention (ADR-0016 §3) : install-<produit>.euglowlabs.com
+# Each EuglowLabs product (ARC, EuglowLabs Dev, futurs) has its own
+# install-* subdomain. The bare install.euglowlabs.com is reserved
+# (not allocated to any single product).
 set -eu
 
 REPO="${ARC_REPO:-johannKionghat/EUGLOWLABS-ARC}"

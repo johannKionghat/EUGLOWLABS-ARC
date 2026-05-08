@@ -15,7 +15,7 @@ Toutes trois marquées ✅ dans `tasks/INDEX.md`. La réalité après audit en P
 
 - `publish.yml` est en `workflow_dispatch` (trigger manuel uniquement, pas de `git tag v*.*.*`)
 - Aucune release n'a jamais été publiée sur GitHub Releases
-- `install.euglowlabs.com` n'a jamais été enregistré DNS ni hébergé
+- `install-arc.euglowlabs.com` n'a jamais été enregistré DNS ni hébergé
 - **Les playbooks Ansible vivent dans `packages/arc-cli/playbooks/` (résolus via `package.json#files`) mais ne sont pas embarqués dans le binaire compilé** — show-stopper : `bun build --compile` n'inline pas automatiquement les fichiers référencés par chemin filesystem au runtime ; un binaire téléchargé seul ne peut pas exécuter `arc setup --apply`
 - `homebrew/arc.rb` est un skeleton non publié (tap inexistant)
 - `npm publish` est skip car `NPM_TOKEN` absent
@@ -53,7 +53,9 @@ Rejeté : tarball signé téléchargé au runtime (complexité CDN/signature) ; 
 
 ### 3. Hosting + CI release + signing + update (D-DIST-3+4+5+7)
 
-**Hosting `install.sh`** : `https://install.euglowlabs.com/` via Cloudflare Pages, source = `dist/install/install.sh` du repo, auto-publié au push. CNAME DNS `install` → Pages target. `arc.euglowlabs.com` est **réservé au futur produit Dashboard hébergé / Cloud** et explicitement non utilisé pour la distribution.
+**Hosting `install.sh`** : `https://install-arc.euglowlabs.com/` via Cloudflare Pages, source = `dist/install/install.sh` du repo, auto-publié au push. CNAME DNS `install-arc` → Pages target. `arc.euglowlabs.com` est **réservé au futur produit Dashboard hébergé / Cloud** et explicitement non utilisé pour la distribution.
+
+**Convention de nommage stricte** : `install-<produit>.euglowlabs.com`. Chaque produit EuglowLabs (ARC, EuglowLabs Dev, futurs) a son propre sous-domaine d'install — pas de monopolisation de la racine `install.euglowlabs.com` par un seul produit. Le sous-domaine sans suffixe `install.euglowlabs.com` reste **explicitement libre** (ni réservé à ARC, ni alloué à un autre produit) pour préserver le namespace produit.
 
 **CI release** : workflow GitHub Actions déclenché sur push de tag `v*.*.*`. Steps : build cross-compile linux x64 + linux arm64 depuis `ubuntu-latest` (Bun cross-compile, pas de runner ARM). Génération de SHA256 par binaire. Création GitHub Release avec body autogénéré (changesets ou git log depuis dernier tag). Upload de 4 artefacts : `arc-linux-x64`, `arc-linux-arm64`, `arc-linux-x64.sha256`, `arc-linux-arm64.sha256`.
 
@@ -81,13 +83,13 @@ Cinq fichiers maintenus comme source de vérité utilisateur et opérateur :
 + **Pipeline release reproductible** — tag = release, fini les `workflow_dispatch` manuels
 + **Distribution sans `git` ni accès au repo source** — l'utilisateur lambda n'est plus exposé au code
 + **CI minimaliste** — build linux x64+arm64 depuis un seul runner `ubuntu-latest`, ~3 min de build vs ~15 min en QEMU/multi-runner
-+ **Surface produit propre** — `arc.euglowlabs.com` réservé au Dashboard/Cloud futur, distribution isolée sur `install.euglowlabs.com`
++ **Surface produit propre** — `arc.euglowlabs.com` réservé au Dashboard/Cloud futur, distribution isolée sur `install-arc.euglowlabs.com` (convention multi-produits `install-<produit>.euglowlabs.com`)
 
 ### Compromis acceptés
 - **Pas de signature cryptographique en MVP** — risque MITM théorique si TLS de Cloudflare ou GitHub Releases compromis. Mitigation : SHA256 checksums fournis, ajout cosign en `DIST-002` post-Chantier-1.
 - **Pas de self-update** — l'utilisateur doit re-curler. UX inférieure à `arc self-update`. Mitigation : `arc upgrade` informatif, doc claire, ajout `DIST-003` post-Chantier-1.
 - **Pas de release macOS/Windows** — exclut le cas "dev local sur Mac qui veut juste essayer `arc init`". Acceptable : ADR-0012 acte que l'install se fait sur la cible Linux. Mitigation : code cross-compile conservé, `DIST-004` post-bêta sur demande communauté.
-- **Dépendance Cloudflare Pages** — si Cloudflare devient indisponible, `install.euglowlabs.com` tombe. Mitigation : artefacts release toujours téléchargeables via GitHub raw URL, install.sh peut être copié-collé en cas d'incident majeur.
+- **Dépendance Cloudflare Pages** — si Cloudflare devient indisponible, `install-arc.euglowlabs.com` tombe. Mitigation : artefacts release toujours téléchargeables via GitHub raw URL, install.sh peut être copié-collé en cas d'incident majeur.
 - **Embed playbooks gonfle le binaire** — estimation : +200-500 KB selon arborescence YAML+Jinja2. Acceptable vs le bénéfice d'atomicité. Si ça devient critique (>5 MB), repivoter vers tarball au runtime, mais peu probable avant longtemps.
 
 ## Alternatives rejetées
@@ -96,7 +98,8 @@ Cinq fichiers maintenus comme source de vérité utilisateur et opérateur :
 - **Combo binaire + Docker** — double maintenance pour zéro cas d'usage que le binaire seul ne couvre pas. YAGNI.
 - **Tarball playbooks téléchargé au runtime** — complexité CDN, signature, retry logic, gestion cache. Le bénéfice d'atomicité de version disparaît.
 - **Clone GitHub au runtime** — dépendance `git`, latence, surface MITM, pas de cohérence binaire/playbooks.
-- **`get.euglowlabs.com`** — équivalent fonctionnel à `install.`, choix de branding. Précédents 2025+ favorisent `install.` (Deno, Bun, Astro, Tailscale).
+- **`install.euglowlabs.com`** (sans suffixe produit) — REJETÉ : monopolise la racine `install.*` pour un seul produit, incompatible avec la roadmap multi-produits EuglowLabs (ARC, EuglowLabs Dev, futurs). La convention `install-<produit>.euglowlabs.com` préserve le namespace.
+- **`get.euglowlabs.com`** — REJETÉ pour la même raison (monopolise `get.*` pour ARC). Convention `install-<produit>.euglowlabs.com` retenue.
 - **GitHub raw URL pour `install.sh`** — URL fragile au rename, branding pauvre, pas de CDN sérieux.
 - **Cosign / Sigstore en MVP** — UX coûteux pour 99% des utilisateurs qui ne vérifient pas. Reportable sans dette technique.
 - **GPG signing** — key management = friction garantie, valeur perçue nulle vs Cosign pour MVP.
@@ -106,6 +109,6 @@ Cinq fichiers maintenus comme source de vérité utilisateur et opérateur :
 ## Notes de mise en œuvre
 
 - Spike Bun embed YAML arborescent **avant tout commit de code** sur 1a. Si KO, pivoter explicitement vers le plan B tarball+base64 et le documenter dans le scratchpad de `tasks/current.md`. Ne pas amend cet ADR pour autant : le résultat fonctionnel reste "playbooks embarqués dans le binaire".
-- Toutes les références hardcodées au host `arc.euglowlabs.com` dans `install.sh` doivent passer à `install.euglowlabs.com` (cohérent avec décision §3).
+- Toutes les références hardcodées au host `arc.euglowlabs.com` dans `install.sh` doivent passer à `install-arc.euglowlabs.com` (cohérent avec décision §3 et la convention multi-produits `install-<produit>.euglowlabs.com`).
 - Tag de référence pour le smoke E2E : `v0.1.0-rc.1` (pré-release, ne déclenche pas l'annonce). Tag final `v0.1.0` après GO smoke.
 - Backlog créé : `DIST-002` (cosign), `DIST-003` (self-update), `DIST-004` (release darwin/windows). Inscrits dans `tasks/INDEX.md` Phase 1.6.
