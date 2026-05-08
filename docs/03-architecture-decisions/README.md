@@ -61,3 +61,6 @@ Pourquoi pas X, Y, Z.
 - [ADR-0011 — Critères d'acceptation end-to-end (28 critères)](./0011-end-to-end-install-acceptance.md)
 - [ADR-0012 — Single-machine install model](./0012-single-machine-install.md)
 - [ADR-0013 — Strict Chantier 1 / Chantier 2 separation](./0013-chantier-1-2-separation.md)
+- [ADR-0014 — Persona cible de la documentation utilisateur](./0014-doc-target-persona.md)
+- [ADR-0015 — Layout des artefacts utilisateur sous `~/.arc/`](./0015-layout-arc-user-artifacts.md)
+- [ADR-0016 — Distribution & packaging strategy](./0016-distribution-strategy.md)
