@@ -103,11 +103,13 @@ CLI gaps notés à traiter au moment opportun :
 - **Notes** : Diff validé par utilisateur avant écriture. Retouche cosmétique appliquée (concurrence séparée en outils sysadmin / runtimes packagés).
 
 ### Sous-tâche 1a — Spike Bun embed playbooks + build standalone
-- **Fichiers** : `packages/arc-cli/scripts/build-binaries.mjs`, `packages/arc-cli/src/playbooks-loader.ts` (nouveau), `packages/arc-cli/src/version.ts` (nouveau ou maj), `packages/arc-cli/src/commands/upgrade.ts` (nouveau)
-- **Effort estimé** : ~2h (dont 30 min spike Bun)
-- **Détail** : (1) Spike de 30 min : essayer `import yaml from "./playbooks/setup.yml"` puis `Bun.embeddedFiles` sur arborescence YAML+Jinja2. Si OK → intégrer. Si KO → pivoter vers tar.gz + base64 inline (`fs.createWriteStream` à l'extraction, target = `~/.arc/playbooks/<version>/`). (2) Ajouter `--define __ARC_VERSION__/__ARC_GIT_SHA__/__ARC_BUILD_DATE__` dans `build-binaries.mjs`. (3) Stub `arc upgrade` qui imprime « re-run install.sh ». (4) Test : binaire compilé exécuté depuis tmp dir hors repo voit les playbooks via le loader.
-- **Dépendances** : 1a-bis (ADR-0016 figé)
-- **Livrable** : binaire compilé qui (a) connaît sa version, (b) a `arc upgrade` stub, (c) résout les playbooks embarqués
+- **Statut** : 1a-1 ✅, 1a-2 ✅, 1a-3 ✅, 1a-4 ⬜, 1a-5 ⬜
+- **Découpage interne livré** :
+  - **1a-1** ✅ Spike Bun embed (méthode B viable, ~50 KB cost) — `scripts/spike-bun-embed.mjs`
+  - **1a-2** ✅ Codegen + EmbeddedPlaybooksLoader (split en 2 commits `fa9b021` + `1cad8db`)
+  - **1a-3** ✅ `bun --define` injection version metadata + `formatVersion()` + `commands/version.ts` enrichi
+  - **1a-4** ⬜ Stub `arc upgrade` (~10 min)
+  - **1a-5** ⬜ Smoke binaire compilé E2E + suppression du spike script (~15 min)
 
 ### Sous-tâche 1b — Réécriture install.sh
 - **Fichiers** : `packages/arc-cli/install.sh`
@@ -167,3 +169,8 @@ CLI gaps notés à traiter au moment opportun :
 - ⚠️ **Réserver `arc.euglowlabs.com` dans Cloudflare DNS dès cette semaine** (cohérent ADR-0016 §3) — empêcher la prise du sous-domaine par un tiers avant que la décision soit appliquée.
 - Audit toutes les ✅ archivées en Phase 1 pour vérifier critères runtime validés (post-mortem hors scope DIST-001).
 - darwin/windows en backlog post-bêta (DIST-004) — code cross-compile conservé dans `build-binaries.mjs`.
+- **`arc cache clear`** pour nettoyer `~/.arc/playbooks/<oldversion>/` après upgrade (DIST-001 1a-2 / 1a-3).
+- **CONTRIBUTING.md futur** : documenter que `pnpm gen:manifest` régénère le manifest (et que `pre*` hooks le font automatiquement) — DIST-001 1a-2.
+- **ADR-0016 cleanup** : note "+200-500 KB binaire gonflement" surévaluée 10× (réalité ~50 KB), à corriger.
+- **Versions futures avec caractères spéciaux SemVer** (ex: `0.1.0-rc.1+build.123`) : tester que `bun --define` les accepte sans escape — probablement OK via `spawnSync` array, à valider en 1a-5 ou plus tard. DIST-001 1a-3.
+- **Vérifier paths Ansible relatifs** : pendant 1a-5 (smoke binaire), s'assurer que les rôles Ansible résolvent leurs paths relatifs depuis `arcPlaybooksDir(VERSION)` (et non depuis cwd).

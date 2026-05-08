@@ -3,7 +3,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 
 import { runFromArgs } from "./cli.js";
-import { VERSION } from "./version.js";
+import { VERSION, formatVersion } from "./version.js";
 
 interface RunResult {
   exitCode: number;
@@ -32,7 +32,11 @@ describe("arc CLI", () => {
   it("prints version via `version` subcommand", async () => {
     const result = await run(["version"]);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toBe(`arc ${VERSION}\n`);
+    // DIST-001 1a-3 : `arc version` prints the full ADR-0016 §1
+    // "X.Y.Z (sha=ABC, built=ISO_DATE)" rendering. The clipanion
+    // built-in --version flag still prints the short form (asserted
+    // by the next test).
+    expect(result.stdout).toBe(`arc ${formatVersion()}\n`);
     expect(result.stderr).toBe("");
   });
 

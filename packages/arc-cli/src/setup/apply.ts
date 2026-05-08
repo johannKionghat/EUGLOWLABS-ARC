@@ -15,6 +15,7 @@ import {
   generateProdCompose,
   generateSandboxCompose,
 } from "../templates/index.js";
+import { VERSION } from "../version.js";
 import { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK } from "./exit-codes.js";
 import {
   type ArcState,
@@ -254,15 +255,6 @@ export interface ApplyStackOptions {
 }
 
 /**
- * Placeholder version label used when extracting the embedded playbooks
- * to `~/.arc/playbooks/<version>/`. DIST-001 1a-3 will replace this
- * with a `bun build --define`-injected `__ARC_VERSION__` constant
- * sourced from `./version.ts`. Until then, the dev binary writes under
- * `~/.arc/playbooks/0.0.0-dev/` regardless of the actual build.
- */
-const PLAYBOOK_EXTRACTION_VERSION = "0.0.0-dev";
-
-/**
  * Apply the local ARC stack on the host : detect Ansible, prompt for
  * idempotence, generate the three composes under `~/.arc/compose/`,
  * invoke the bundled Ansible playbook, then commit `~/.arc/state.json`.
@@ -403,7 +395,7 @@ export async function applyStack(
   // idempotence prompt.
   const loader = opts.loader ?? new EmbeddedPlaybooksLoader(PLAYBOOKS_MANIFEST);
   try {
-    await loader.extractToDisk(arcPlaybooksDir(PLAYBOOK_EXTRACTION_VERSION));
+    await loader.extractToDisk(arcPlaybooksDir(VERSION));
   } catch (err) {
     cancel(`✗ Failed to extract embedded playbooks: ${(err as Error).message}`);
     return EXIT_ENV_ERROR;
@@ -411,14 +403,10 @@ export async function applyStack(
 
   const runId = randomUUID();
   const onLine = opts.onAnsibleLine ?? ((line: string) => process.stdout.write(`${line}\n`));
-  const runResult = await runAnsiblePlaybook(
-    adapter,
-    arcPlaybookEntry(PLAYBOOK_EXTRACTION_VERSION),
-    {
-      extraVars: { arc_playbook_run_id: runId },
-      onLine,
-    },
-  );
+  const runResult = await runAnsiblePlaybook(adapter, arcPlaybookEntry(VERSION), {
+    extraVars: { arc_playbook_run_id: runId },
+    onLine,
+  });
   if (runResult.exitCode !== 0) {
     cancel(
       `✗ ansible-playbook failed (exit ${runResult.exitCode}). Composes left in place at ${composeDir} for inspection ; state.json not updated.`,
