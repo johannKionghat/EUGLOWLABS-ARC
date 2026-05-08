@@ -7,7 +7,9 @@ import type { ArcConfig } from "@euglowlabs/arc-shared";
 
 import { runAnsiblePlaybook } from "../ansible/run.js";
 import type { ExecutionAdapter } from "../exec/index.js";
-import { arcComposeDir, bundledPlaybookPath } from "../paths.js";
+import { arcComposeDir, arcPlaybookEntry, arcPlaybooksDir } from "../paths.js";
+import { EmbeddedPlaybooksLoader, type PlaybooksLoader } from "../playbooks-loader.js";
+import { PLAYBOOKS_MANIFEST } from "../playbooks-manifest.js";
 import {
   generateAgentsCompose,
   generateProdCompose,
@@ -243,7 +245,22 @@ export interface ApplyStackOptions {
   now?: () => Date;
   /** Test seam : sink for the ansible-playbook stream. Default = stdout. */
   onAnsibleLine?: (line: string) => void;
+  /**
+   * Test seam : inject a {@link PlaybooksLoader} (defaults to the
+   * production embedded manifest). Tests typically pass a no-op loader
+   * to keep `~/.arc/playbooks/` untouched. DIST-001 1a-2.
+   */
+  loader?: PlaybooksLoader;
 }
+
+/**
+ * Placeholder version label used when extracting the embedded playbooks
+ * to `~/.arc/playbooks/<version>/`. DIST-001 1a-3 will replace this
+ * with a `bun build --define`-injected `__ARC_VERSION__` constant
+ * sourced from `./version.ts`. Until then, the dev binary writes under
+ * `~/.arc/playbooks/0.0.0-dev/` regardless of the actual build.
+ */
+const PLAYBOOK_EXTRACTION_VERSION = "0.0.0-dev";
 
 /**
  * Apply the local ARC stack on the host : detect Ansible, prompt for
@@ -376,16 +393,32 @@ export async function applyStack(
     return EXIT_ENV_ERROR;
   }
 
-  // Step 7 — Invoke ansible-playbook (stub for INSTALL-002 ; real roles
-  // land in ANSIBLE-001). On failure, composes stay in place — the user
-  // can inspect them and rerun. state.json stays absent so the next run
-  // detects the partial state via the idempotence prompt.
+  // Step 7 — Extract the embedded playbook tree to disk, then invoke
+  // ansible-playbook. The tree is bundled into the binary at build time
+  // (DIST-001 1a-2 — codegen + EmbeddedPlaybooksLoader) and materialised
+  // under ~/.arc/playbooks/<version>/ on every run (idempotent
+  // overwrite, ~50 KB I/O — negligible). On failure, composes stay in
+  // place — the user can inspect them and rerun. state.json stays
+  // absent so the next run detects the partial state via the
+  // idempotence prompt.
+  const loader = opts.loader ?? new EmbeddedPlaybooksLoader(PLAYBOOKS_MANIFEST);
+  try {
+    await loader.extractToDisk(arcPlaybooksDir(PLAYBOOK_EXTRACTION_VERSION));
+  } catch (err) {
+    cancel(`✗ Failed to extract embedded playbooks: ${(err as Error).message}`);
+    return EXIT_ENV_ERROR;
+  }
+
   const runId = randomUUID();
   const onLine = opts.onAnsibleLine ?? ((line: string) => process.stdout.write(`${line}\n`));
-  const runResult = await runAnsiblePlaybook(adapter, bundledPlaybookPath(), {
-    extraVars: { arc_playbook_run_id: runId },
-    onLine,
-  });
+  const runResult = await runAnsiblePlaybook(
+    adapter,
+    arcPlaybookEntry(PLAYBOOK_EXTRACTION_VERSION),
+    {
+      extraVars: { arc_playbook_run_id: runId },
+      onLine,
+    },
+  );
   if (runResult.exitCode !== 0) {
     cancel(
       `✗ ansible-playbook failed (exit ${runResult.exitCode}). Composes left in place at ${composeDir} for inspection ; state.json not updated.`,

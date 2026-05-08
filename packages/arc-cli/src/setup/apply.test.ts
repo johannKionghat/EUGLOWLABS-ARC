@@ -37,6 +37,7 @@ vi.mock("@clack/prompts", () => ({
 import type { ArcConfig } from "@euglowlabs/arc-shared";
 
 import { MockAdapter } from "../exec/index.js";
+import type { PlaybooksLoader } from "../playbooks-loader.js";
 import {
   ANSIBLE_NOT_INSTALLED_MESSAGE,
   AnsibleExecutionError,
@@ -48,6 +49,17 @@ import {
 } from "./apply.js";
 import { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK } from "./exit-codes.js";
 import { loadStateFile } from "./state.js";
+
+/**
+ * No-op loader used in `applyStack` tests so the production embedded
+ * manifest is never extracted to `~/.arc/playbooks/` during unit tests
+ * (keeps tests hermetic, consistent with the `MockAdapter` pattern).
+ * DIST-001 1a-2.
+ */
+const noopLoader: PlaybooksLoader = {
+  listPlaybooks: () => [],
+  extractToDisk: async () => {},
+};
 
 const VERSION_CMD = "ansible-playbook --version";
 
@@ -222,6 +234,7 @@ describe("applyStack", () => {
     const code = await applyStack(sampleConfig, adapter, {
       composers: dummyComposers(),
       onAnsibleLine: () => {},
+      loader: noopLoader,
     });
     expect(code).toBe(EXIT_OK);
 
@@ -261,6 +274,7 @@ describe("applyStack", () => {
     const code = await applyStack(sampleConfig, adapter, {
       composers: dummyComposers(),
       onAnsibleLine: () => {},
+      loader: noopLoader,
       now: () => new Date("2026-05-04T14:00:00.000Z"),
     });
     expect(code).toBe(EXIT_CANCELLED);
@@ -300,6 +314,7 @@ describe("applyStack", () => {
     const code = await applyStack(sampleConfig, adapter, {
       composers: dummyComposers(),
       onAnsibleLine: () => {},
+      loader: noopLoader,
       now: () => newDate,
     });
     expect(code).toBe(EXIT_OK);
@@ -330,6 +345,7 @@ describe("applyStack", () => {
       force: true,
       composers: dummyComposers(),
       onAnsibleLine: () => {},
+      loader: noopLoader,
     });
     expect(code).toBe(EXIT_OK);
 
@@ -350,6 +366,7 @@ describe("applyStack", () => {
     const code = await applyStack(sampleConfig, adapter, {
       composers: dummyComposers(),
       onAnsibleLine: () => {},
+      loader: noopLoader,
     });
     expect(code).toBe(EXIT_CANCELLED);
 
@@ -369,6 +386,7 @@ describe("applyStack", () => {
       const code = await applyStack(sampleConfig, adapter, {
         composers: dummyComposers(),
         onAnsibleLine: () => {},
+        loader: noopLoader,
       });
       // Restore perms before assertions / cleanup.
       await chmod(arcDir, 0o755);
@@ -391,6 +409,7 @@ describe("applyStack", () => {
     const code = await applyStack(sampleConfig, adapter, {
       composers,
       onAnsibleLine: () => {},
+      loader: noopLoader,
     });
     expect(code).toBe(EXIT_ENV_ERROR);
     expect(cancelCalls.some((m) => m.includes("Compose generation failed"))).toBe(true);
@@ -419,6 +438,7 @@ describe("applyStack", () => {
     const code = await applyStack(sampleConfig, adapter, {
       composers: dummyComposers(),
       onAnsibleLine: () => {},
+      loader: noopLoader,
     });
     expect(code).toBe(EXIT_ENV_ERROR);
     expect(cancelCalls.some((m) => m.includes("ansible-playbook failed"))).toBe(true);
@@ -444,6 +464,7 @@ describe("applyStack", () => {
       const code = await applyStack(sampleConfig, adapter, {
         composers: dummyComposers(),
         onAnsibleLine: () => {},
+        loader: noopLoader,
       });
       expect(code).toBe(EXIT_OK);
 

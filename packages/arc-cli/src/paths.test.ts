@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, sep } from "node:path";
 
@@ -8,9 +7,10 @@ import {
   arcComposeDir,
   arcConfigPath,
   arcCredentialsDir,
+  arcPlaybookEntry,
+  arcPlaybooksDir,
   arcStatePath,
   arcUserDir,
-  bundledPlaybookPath,
 } from "./paths.js";
 
 describe("paths", () => {
@@ -95,22 +95,29 @@ describe("paths", () => {
     });
   });
 
-  describe("bundledPlaybookPath", () => {
-    it("ends with playbooks/setup.yml", () => {
-      const p = bundledPlaybookPath();
-      expect(p.endsWith(join("playbooks", "setup.yml"))).toBe(true);
+  describe("arcPlaybooksDir", () => {
+    it("returns <HOME>/.arc/playbooks/<version> when HOME is set", () => {
+      process.env.HOME = "/home/johann";
+      expect(arcPlaybooksDir("0.1.0")).toBe(join("/home/johann", ".arc", "playbooks", "0.1.0"));
     });
 
-    it("is independent of HOME", () => {
-      process.env.HOME = "/somewhere/else";
-      const a = bundledPlaybookPath();
-      process.env.HOME = "/another/place";
-      const b = bundledPlaybookPath();
-      expect(a).toBe(b);
+    it("sits under arcUserDir", () => {
+      process.env.HOME = "/tmp/h";
+      expect(arcPlaybooksDir("0.0.0-dev").startsWith(arcUserDir() + sep)).toBe(true);
+    });
+  });
+
+  describe("arcPlaybookEntry", () => {
+    it("returns <HOME>/.arc/playbooks/<version>/setup.yml", () => {
+      process.env.HOME = "/home/johann";
+      expect(arcPlaybookEntry("0.1.0")).toBe(
+        join("/home/johann", ".arc", "playbooks", "0.1.0", "setup.yml"),
+      );
     });
 
-    it("points to a file that exists on disk (bundled with the package)", () => {
-      expect(existsSync(bundledPlaybookPath())).toBe(true);
+    it("is consistent with arcPlaybooksDir", () => {
+      process.env.HOME = "/tmp/h";
+      expect(arcPlaybookEntry("v1").startsWith(arcPlaybooksDir("v1"))).toBe(true);
     });
   });
 });

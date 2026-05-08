@@ -1,6 +1,5 @@
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 /**
  * Source of truth for user-facing artifact paths under `~/.arc/`.
@@ -65,23 +64,26 @@ export function arcStatePath(): string {
 }
 
 /**
- * Absolute path to the bundled Ansible playbook shipped with arc-cli
- * (`<package>/playbooks/setup.yml`).
+ * Absolute path to the per-version directory holding the playbook tree
+ * extracted from the binary at runtime (`~/.arc/playbooks/<version>/`).
  *
- * Resolution works identically from both `src/paths.ts` (dev/tests) and
- * `dist/paths.js` (npm install) because both files sit one level below
- * the package root. The `playbooks/` directory MUST be listed in
- * `package.json#files` so it ships in the published tarball.
+ * `EmbeddedPlaybooksLoader.extractToDisk` writes here on each
+ * `arc setup --apply`. The `<version>` segment isolates installations
+ * across versions so an upgrade can keep the previous extraction around
+ * for rollback (cleanup tracked as a future `arc cache clear`).
  *
- * Caller is responsible for verifying existence before invoking
- * `ansible-playbook` — this helper only computes the path.
- *
- * NOTE on `bun build --compile` (CLI-025): single-binary asset bundling
- * for this playbook is tracked separately. Until then, the binary
- * resolves to a path next to itself, which is fine for npm/Homebrew
- * installs but may need an `--asset` flag in the build script.
+ * The directory itself is created by `extractToDisk` ; this helper only
+ * computes the path.
  */
-export function bundledPlaybookPath(): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "..", "playbooks", "setup.yml");
+export function arcPlaybooksDir(version: string): string {
+  return join(arcUserDir(), "playbooks", version);
+}
+
+/**
+ * Convenience helper : path to the `setup.yml` entry-point in the
+ * extracted playbook tree. Consumed by `runAnsiblePlaybook(...)` after
+ * `extractToDisk` returns.
+ */
+export function arcPlaybookEntry(version: string): string {
+  return join(arcPlaybooksDir(version), "setup.yml");
 }
