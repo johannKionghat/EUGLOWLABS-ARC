@@ -99,6 +99,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 - ⬜ DIST-002 — Cosign + Sigstore signing *(backlog post-Chantier-1)*
 - ⬜ DIST-003 — `arc self-update` auto-upgrade command *(backlog post-Chantier-1)*
 - ⬜ DIST-004 — Release darwin x64/arm64 + windows x64 *(backlog post-bêta, sur demande communauté)*
+- 🔵 LOCAL-001 — Mode local dev WSL (post-DIST-001)
 
 ---
 
