@@ -15,6 +15,7 @@ import { RestoreCommand } from "./commands/restore.js";
 import { SetupCommand } from "./commands/setup.js";
 import { StatusCommand } from "./commands/status.js";
 import { TelemetryConfigCommand } from "./commands/telemetry.js";
+import { UpgradeCommand } from "./commands/upgrade.js";
 import { VersionCommand } from "./commands/version.js";
 import { VERSION } from "./version.js";
 
@@ -34,6 +35,7 @@ export function buildCli(): Cli<BaseContext> {
   cli.register(HelpCommand);
   cli.register(Builtins.VersionCommand);
   cli.register(VersionCommand);
+  cli.register(UpgradeCommand);
   cli.register(InitCommand);
   cli.register(SetupCommand);
   cli.register(DeployCommand);

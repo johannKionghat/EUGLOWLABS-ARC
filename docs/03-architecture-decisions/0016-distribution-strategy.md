@@ -110,5 +110,6 @@ Cinq fichiers maintenus comme source de vérité utilisateur et opérateur :
 
 - Spike Bun embed YAML arborescent **avant tout commit de code** sur 1a. Si KO, pivoter explicitement vers le plan B tarball+base64 et le documenter dans le scratchpad de `tasks/current.md`. Ne pas amend cet ADR pour autant : le résultat fonctionnel reste "playbooks embarqués dans le binaire".
 - Toutes les références hardcodées au host `arc.euglowlabs.com` dans `install.sh` doivent passer à `install-arc.euglowlabs.com` (cohérent avec décision §3 et la convention multi-produits `install-<produit>.euglowlabs.com`).
+- **Pattern d'invocation `curl ... | sh` (sans `sudo` top-level).** `install.sh` exécute `sudo` ciblé en interne uniquement pour les opérations privilégiées (drop du binaire dans `/usr/local/bin/`, par exemple). Cohérent avec Docker, Tailscale, Bun, Deno. *Pas de* `curl ... | sudo bash` (escalade root globale du script entier) — l'utilisateur voit explicitement quand `sudo` est requis, surface d'attaque root réduite, permissions correctes pour les artefacts user-owned (`~/.arc/`).
 - Tag de référence pour le smoke E2E : `v0.1.0-rc.1` (pré-release, ne déclenche pas l'annonce). Tag final `v0.1.0` après GO smoke.
 - Backlog créé : `DIST-002` (cosign), `DIST-003` (self-update), `DIST-004` (release darwin/windows). Inscrits dans `tasks/INDEX.md` Phase 1.6.
