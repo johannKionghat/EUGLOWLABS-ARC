@@ -121,12 +121,15 @@ CLI gaps notés à traiter au moment opportun :
 - **Smoke runtime** : reporté à 1f (nécessite GitHub Releases publiés + hosting Cloudflare Pages, livrés en 1c+1d)
 - **Effort réel** : ~1h
 
-### Sous-tâche 1c — CI GitHub Actions release v2
-- **Fichiers** : `.github/workflows/release.yml` (nouveau, remplace `publish.yml` ou cohabite), `.github/workflows/publish.yml` (deprecate ou supprimer)
-- **Effort estimé** : ~2h
-- **Détail** : Trigger sur push de tag `v*.*.*`. Steps : checkout, install pnpm/Bun, build, build:bin (linux x64+arm64 only via `--target=bun-linux-x64` et `bun-linux-arm64`), génère SHA256 (`sha256sum arc-linux-x64 > arc-linux-x64.sha256`), crée release GitHub avec body autogénéré (changesets ou git log depuis last tag), upload 4 artefacts. Conserve les builds darwin/windows en local mais ne les publie pas.
-- **Dépendances** : 1a (build-binaries.mjs doit accepter --define version)
-- **Livrable** : workflow YAML + un dry-run via `act` ou commit sur branche staging avec tag de test puis cleanup
+### Sous-tâche 1c — CI GitHub Actions release v2 ✅
+- **Statut** : Terminée 2026-05-08
+- **Fichiers livrés** : `.github/workflows/publish.yml` (REWRITE complet, drop job `npm` no-op au profit du focus binaires)
+- **Trigger** : `push: tags: [v*.*.*]` + `workflow_dispatch` (input `tag` pour fallback manuel)
+- **Pipeline** : checkout (fetch-depth 0) → resolve tag → setup pnpm/Node/Bun → install → pre-flight (lint → typecheck → test → build → build:bin) → SHA256 generation → softprops/action-gh-release@v2 (auto release notes + prerelease detect `-rc`/`-beta`/`-alpha` + fail_on_unmatched_files)
+- **Artefacts** : 4 fichiers (arc-linux-x64, arc-linux-arm64, +.sha256 chacun). darwin/windows cross-compilés mais non uploadés (DIST-004 backlog)
+- **Validation YAML** : `python yaml.safe_load` ✅, `yamllint` 2 warnings cosmétiques GHA-standard (missing `---`, truthy `on:`) — ignorés par convention communauté
+- **Smoke runtime** : reporté à 1f (push de tag `v0.1.0-rc.1` → première vraie release)
+- **Effort réel** : ~1h
 
 ### Sous-tâche 1d — Hosting install-arc.euglowlabs.com
 - **Fichiers** : configuration Cloudflare (DNS CNAME + Pages project), `dist/install/install.sh` ou alternative selon stratégie Pages, mise à jour `packages/arc-cli/install.sh` pour le host final si ajustement
