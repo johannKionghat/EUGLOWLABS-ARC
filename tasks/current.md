@@ -132,6 +132,9 @@ CLI gaps notés à traiter au moment opportun :
 - **Effort réel** : ~1h
 
 ### Sous-tâche 1d — Hosting install-arc.euglowlabs.com
+- **1d-1** ✅ Artefacts repo livrés 2026-05-10 : `scripts/gen-install-page.mjs` + `dist/install/_headers` + `.gitignore` re-include + `package.json` script
+- **1d-2** ⏳ Walkthrough Cloudflare en attente collaboration utilisateur (dashboard)
+- **1d-3** ⏳ Réservation DNS `arc.euglowlabs.com` (parking record)
 - **Fichiers** : configuration Cloudflare (DNS CNAME + Pages project), `dist/install/install.sh` ou alternative selon stratégie Pages, mise à jour `packages/arc-cli/install.sh` pour le host final si ajustement
 - **Effort estimé** : ~1h
 - **Détail** : Cloudflare Pages connecté à un dossier `dist/install/` (ou un repo dédié si simpler). DNS CNAME `install` → cible Pages. Header `Content-Type: text/plain; charset=utf-8` via `_headers` Pages. Vérification : `curl -I https://install-arc.euglowlabs.com` → 200, content-type OK, body = install.sh actuel. **Action côté Cloudflare dashboard utilisateur requise** — collaboration nécessaire.
@@ -186,3 +189,15 @@ CLI gaps notés à traiter au moment opportun :
 - **install.sh + ARC_INSTALL_DIR dans `$HOME`** : edge case détecté en 1b — si l'utilisateur fait `curl ... | ARC_INSTALL_DIR=$HOME/.local/bin sh` depuis un compte non-root, le `$SUDO mv` produit un fichier owned `root:root` dans son propre `$HOME`. Ironique. Fix futur : skip sudo si `INSTALL_DIR` est sous `$HOME`. Pas blocker MVP.
 - **Shellcheck en CI** : `shellcheck install.sh` à ajouter au workflow GitHub Actions (sous-tâche 1c) ou en pre-commit hook lefthook. Validation locale impossible faute d'install.
 - **Vérifier docs/installation.md existe au tag** : le next-steps message d'`install.sh` link `docs/installation.md` (sera créé en 1e). Vérifier en 1f (avant `v0.1.0-rc.1`) que le fichier est bien présent sur `main`.
+
+### 2026-05-10 — 1d-1 livrée (Cloudflare Pages artefacts)
+- 4 décisions design tranchées et tracées dans `.claude/prompts-history.json` (2026-05-10-001 entrée 2) :
+  - Q1 stratégie : copy-on-build via `pnpm gen:install-page` (gitignored mirror)
+  - Q2 URL : `dist/install/index.html` + `_headers` Content-Type override (no _redirects)
+  - Q3 script : `scripts/gen-install-page.mjs` à la racine (rejoint pattern `generate-playbooks-manifest.mjs`)
+  - Q4 périmètre : 5 fichiers épurés (sans README ni .gitkeep)
+- Fichiers livrés : 5 (script gen + _headers + .gitignore + package.json + current.md)
+- Source de vérité unique : `packages/arc-cli/install.sh` (D-DIST-3, ADR-0016 §3) — mirror gitignoré, drift impossible
+- **1d-2 walkthrough Cloudflare en attente collaboration utilisateur** : créer projet Pages connecté à `johannKionghat/EUGLOWLABS-ARC` branch `main`, build cmd `pnpm gen:install-page`, output dir `dist/install`, custom domain `install-arc.euglowlabs.com`, vérification `curl -I` → 200 + Content-Type text/plain
+- **1d-3 réservation `arc.euglowlabs.com` DNS** : à exécuter en parallèle de 1d-2 côté Cloudflare DNS (parking record, pas de Pages binding)
+- **Gap opérationnel** : commit `366a0cf` (1c) toujours en attente de push origin/main — bloqué par PAT scope `workflow` manquant. À débloquer avant 1f.

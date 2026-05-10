@@ -20,7 +20,8 @@
     "prepare": "lefthook install",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "gen:install-page": "node scripts/gen-install-page.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
