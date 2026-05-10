@@ -22,24 +22,24 @@ See [`docs/02-spec-arc-product.md`](docs/02-spec-arc-product.md) for the full pr
 
 ---
 
-## CLI quickstart (Phase 1)
+## Install (Phase 1)
 
-The CLI is the only component shippable today.
+The CLI is the only component shippable today. End users install via a
+one-liner — full guide : [`docs/installation.md`](docs/installation.md).
 
 ```bash
-# Build the binary for your platform (Bun must be on PATH)
+curl -fsSL https://install-arc.euglowlabs.com | sh
+arc version           # arc v0.X.Y (sha=<short>, built=<ISO>)
+arc init
+arc setup --apply
+```
+
+### Build from source (contributors)
+
+```bash
 pnpm install
 pnpm --filter @euglowlabs/arc-cli build:bin
 ./packages/arc-cli/bin/arc-linux-x64 version
-# arc 0.0.0
-```
-
-Or, when published to GitHub Releases:
-
-```bash
-curl -fsSL https://arc.euglowlabs.com/install.sh | sh
-arc init
-arc deploy --dry-run
 ```
 
 ### Available commands

@@ -29,12 +29,21 @@ Procédure pas-à-pas pour valider une installation ARC fraîche (post `arc setu
 - _(Optionnel — section 5)_ Compte Cloudflare avec zone DNS configurée + token `Zone:DNS:Edit`
 - _(Optionnel — section 6)_ Compte Cloudflare R2 avec bucket + access keys + secret
 
+### 1.1 Installer le CLI `arc`
+
 ```bash
-# Cloner le repo sur la VM cible (depuis ta machine ou via ssh)
+# SSH sur la VM cible
 ssh user@<VPS_IP>
-git clone https://github.com/johannKionghat/EUGLOWLABS-ARC.git ~/euglowlabs-arc
-cd ~/euglowlabs-arc
+
+# Installer arc via le one-liner (DIST-001 — pas de git clone)
+curl -fsSL https://install-arc.euglowlabs.com | sh
+
+# Vérifier l'installation
+arc version
+# arc v0.X.Y (sha=<short>, built=<ISO>)
 ```
+
+Voir [`docs/installation.md`](installation.md) pour les variables d'environnement (`ARC_VERSION`, `ARC_INSTALL_DIR`) et le troubleshooting.
 
 > **Débutant ?** Tutos externes :
 > - SSH : <https://linuxize.com/post/how-to-use-ssh-to-connect-to-a-remote-server-in-linux-or-windows/>

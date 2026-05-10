@@ -2,6 +2,20 @@
 
 The `arc` CLI for **EuglowLabs ARC**. See the [root README](../../README.md) for product overview, quickstart, and roadmap.
 
+## Installation
+
+End users install `arc` via a one-liner (full guide :
+[`docs/installation.md`](../../docs/installation.md)) :
+
+```sh
+curl -fsSL https://install-arc.euglowlabs.com | sh
+```
+
+Supported : Linux x64 + arm64. macOS / Windows tracked as backlog
+`DIST-004`. The installer verifies SHA256 mandatorily and respects
+`ARC_VERSION` / `ARC_INSTALL_DIR` env vars
+(see [`docs/installation.md` § Environment variables](../../docs/installation.md#environment-variables)).
+
 ## Development setup
 
 ### Ansible collections
