@@ -133,8 +133,8 @@ CLI gaps notés à traiter au moment opportun :
 
 ### Sous-tâche 1d — Hosting install-arc.euglowlabs.com
 - **1d-1** ✅ Artefacts repo livrés 2026-05-10 : `scripts/gen-install-page.mjs` + `dist/install/_headers` + `.gitignore` re-include + `package.json` script
-- **1d-2** ⏳ Walkthrough Cloudflare en attente collaboration utilisateur (dashboard)
-- **1d-3** ⏳ Réservation DNS `arc.euglowlabs.com` (parking record)
+- **1d-2** ✅ Cloudflare Pages live 2026-05-11 : projet `euglowlabs-arc` connecté au repo, build vert sur commit `08d3c04`, custom domain `install-arc.euglowlabs.com` Active, smoke `curl -I` 200 + Content-Type text/plain + byte-identical à install.sh source (230 lignes)
+- **1d-3** ✅ DNS parking 2026-05-11 : `arc.euglowlabs.com` → `192.0.2.1` (RFC 5737 TEST-NET-1, DNS only, réservé Dashboard/Cloud ADR-0016 §3)
 - **Fichiers** : configuration Cloudflare (DNS CNAME + Pages project), `dist/install/install.sh` ou alternative selon stratégie Pages, mise à jour `packages/arc-cli/install.sh` pour le host final si ajustement
 - **Effort estimé** : ~1h
 - **Détail** : Cloudflare Pages connecté à un dossier `dist/install/` (ou un repo dédié si simpler). DNS CNAME `install` → cible Pages. Header `Content-Type: text/plain; charset=utf-8` via `_headers` Pages. Vérification : `curl -I https://install-arc.euglowlabs.com` → 200, content-type OK, body = install.sh actuel. **Action côté Cloudflare dashboard utilisateur requise** — collaboration nécessaire.
@@ -201,3 +201,12 @@ CLI gaps notés à traiter au moment opportun :
 - **1d-2 walkthrough Cloudflare en attente collaboration utilisateur** : créer projet Pages connecté à `johannKionghat/EUGLOWLABS-ARC` branch `main`, build cmd `pnpm gen:install-page`, output dir `dist/install`, custom domain `install-arc.euglowlabs.com`, vérification `curl -I` → 200 + Content-Type text/plain
 - **1d-3 réservation `arc.euglowlabs.com` DNS** : à exécuter en parallèle de 1d-2 côté Cloudflare DNS (parking record, pas de Pages binding)
 - **Gap opérationnel** : commit `366a0cf` (1c) toujours en attente de push origin/main — bloqué par PAT scope `workflow` manquant. À débloquer avant 1f.
+
+### 2026-05-11 — 1d-2 + 1d-3 livrées (hosting prod live)
+- PAT scope `workflow` ajouté par utilisateur → push `366a0cf` + `9df426e` + `11b2c3d` → origin/main à jour
+- Cloudflare Pages v3 build system : 2 itérations
+  - Itération 1 : échec `pnpm plugin is not installed` (asdf parsing `.tool-versions`) malgré `NODE_VERSION` + `PNPM_VERSION` env vars
+  - Fix : commit `08d3c04` — retiré ligne `pnpm 9.14.2` de `.tool-versions` (redondante avec `packageManager` dans package.json). Build vert en ~45 s.
+- Smoke `https://install-arc.euglowlabs.com` : HTTP/2 200, `content-type: text/plain; charset=utf-8`, `cache-control: max-age=300`, `x-content-type-options: nosniff`, byte-identical à `packages/arc-cli/install.sh` (230 lignes), routing Paris (`cf-ray: ...-CDG`)
+- 1d-3 réalisé en parallèle par utilisateur côté Cloudflare DNS (zone `euglowlabs.com` autoritative chez Cloudflare, NS = `tony.ns.cloudflare.com` + `jade.ns.cloudflare.com`). OVH = registrar uniquement, pas impliqué dans la config DNS.
+- **Restant pour clôturer DIST-001** : 1e-2 (sweep URL legacy 6 fichiers > seuil 5, confirmation requise) + 1f (smoke E2E sur VM VMware Ubuntu 24.04 → tag `v0.1.0-rc.1` → CI → install via curl → arc setup --apply).
