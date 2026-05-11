@@ -42,7 +42,7 @@ Si pendant Phase 3 ou Phase 4 un critère doit être amendé, **on crée un ADR-
 
 ### A. CLI — bootstrap et commandes (12 critères)
 
-1. **A1** — `curl -fsSL https://arc.euglowlabs.com/install.sh | sh` télécharge le binaire `arc` et l'installe dans `/usr/local/bin/` sans interaction.
+1. **A1** — `curl -fsSL https://install-arc.euglowlabs.com | sh` télécharge le binaire `arc` et l'installe dans `/usr/local/bin/` sans interaction.
 2. **A2** — `arc init` lancé interactivement produit un `~/.arc/arc.config.yml` qui passe la validation zod sans erreur.
 3. **A3** — `arc setup` lancé sur un VPS Ubuntu 24.04 vierge mène à une stack fonctionnelle en moins de **15 minutes**, sans intervention manuelle entre les questions.
 4. **A4** — Re-lancer `arc setup` sur une machine déjà setupée est **idempotent** (pas de duplication, pas de crash).

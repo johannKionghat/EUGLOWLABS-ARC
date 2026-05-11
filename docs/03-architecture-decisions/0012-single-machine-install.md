@@ -27,7 +27,7 @@ EuglowLabs ARC adopte un **modèle d'installation single-machine** :
 1. L'utilisateur dispose d'une machine cible (VPS chez n'importe quel provider, serveur dédié, Raspberry Pi, machine WSL2 pour test). Il en a un accès root SSH.
 2. Il s'y connecte (`ssh root@vps`) et lance **une commande** :
    ```bash
-   curl -fsSL https://arc.euglowlabs.com/install.sh | sh
+   curl -fsSL https://install-arc.euglowlabs.com | sh
    ```
    Cela télécharge le binaire `arc` et le pose dans `/usr/local/bin/`.
 3. Il lance `arc setup`, qui :

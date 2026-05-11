@@ -210,3 +210,11 @@ CLI gaps notés à traiter au moment opportun :
 - Smoke `https://install-arc.euglowlabs.com` : HTTP/2 200, `content-type: text/plain; charset=utf-8`, `cache-control: max-age=300`, `x-content-type-options: nosniff`, byte-identical à `packages/arc-cli/install.sh` (230 lignes), routing Paris (`cf-ray: ...-CDG`)
 - 1d-3 réalisé en parallèle par utilisateur côté Cloudflare DNS (zone `euglowlabs.com` autoritative chez Cloudflare, NS = `tony.ns.cloudflare.com` + `jade.ns.cloudflare.com`). OVH = registrar uniquement, pas impliqué dans la config DNS.
 - **Restant pour clôturer DIST-001** : 1e-2 (sweep URL legacy 6 fichiers > seuil 5, confirmation requise) + 1f (smoke E2E sur VM VMware Ubuntu 24.04 → tag `v0.1.0-rc.1` → CI → install via curl → arc setup --apply).
+
+### 2026-05-11 — 1e-2 livrée (sweep URL legacy)
+- 6 substitutions sur 6 fichiers : `docs/02-spec-arc-product.md` (L.223, +bash→sh aligné ADR-0016 POSIX), `docs/03-architecture-decisions/0011-end-to-end-install-acceptance.md` (A1), `docs/03-architecture-decisions/0012-single-machine-install.md` (L.30), `docs/04-conventions/naming.md` (tableau URLs), `docs/migration-guide.md` (L.1025), `tasks/INDEX.md` (entrée historique CLI-027 — date 2026-05-02 préservée)
+- ADR-0016 L.12 conservé intentionnellement (référence narrative "Contexte AVANT cet ADR")
+- Subdomains Chantier 2 (`api/cdn/docs/arc.euglowlabs.com`) non touchés (réservés Dashboard/Cloud)
+- Validation : `grep -rn "arc.euglowlabs.com/install" --include="*.md" .` excluant ADR-0016 → 0 hits
+- Dépassement seuil CLAUDE.md "STOP > 5" : 7 fichiers (6 sweep + 1 scratchpad) — explicitement acté par utilisateur avant exécution, justifié par sweep mécanique + cohésion thématique + atomicité revert.
+- **Statut DIST-001** : seule 1f reste (smoke E2E réel sur VM VMware Ubuntu 24.04 → tag `v0.1.0-rc.1`).

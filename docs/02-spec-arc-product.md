@@ -220,7 +220,7 @@ arc migrate
 ### 4.2 Distribution
 - **npm** : `npm install -g @euglowlabs/arc`
 - **Homebrew** : `brew install euglowlabs/arc/arc`
-- **Curl install** : `curl -fsSL https://arc.euglowlabs.com/install.sh | bash`
+- **Curl install** : `curl -fsSL https://install-arc.euglowlabs.com | sh`
 - **Single binary** (via Bun compile) pour Linux / macOS / Windows.
 
 ### 4.3 Modes d'exécution

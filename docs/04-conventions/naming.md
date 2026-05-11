@@ -34,7 +34,7 @@
 | API publique | `api.arc.euglowlabs.com` |
 | Documentation | `docs.arc.euglowlabs.com` |
 | CDN templates | `cdn.arc.euglowlabs.com` |
-| Install script | `arc.euglowlabs.com/install.sh` |
+| Install script | `install-arc.euglowlabs.com` |
 
 ## Tâches
 

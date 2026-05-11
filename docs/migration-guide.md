@@ -1022,7 +1022,7 @@ Suivez la procédure d'installation standard (cf. [ADR-0012](./03-architecture-d
 
 ```bash
 # Sur le VPS staging (B), connecté en SSH root
-curl -fsSL https://arc.euglowlabs.com/install.sh | sh
+curl -fsSL https://install-arc.euglowlabs.com | sh
 arc setup
 ```
 
