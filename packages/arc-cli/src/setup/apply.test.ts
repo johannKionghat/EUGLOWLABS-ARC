@@ -42,6 +42,7 @@ import {
   ANSIBLE_NOT_INSTALLED_MESSAGE,
   AnsibleExecutionError,
   AnsibleNotInstalledError,
+  type BootstrapDeps,
   COMPOSE_FILES,
   FORCE_NOTICE,
   applyStack,
@@ -478,4 +479,160 @@ describe("applyStack", () => {
       expect(stateStat.mode & 0o777).toBe(0o600);
     },
   );
+});
+
+// ---------------------------------------------------------------------------
+// applyStack — CLI-029 1c : auto-bootstrap branch (5 paths)
+// ---------------------------------------------------------------------------
+
+/**
+ * Factory for a fake BootstrapDeps with overridable behavior per test.
+ * Each function is a vi.fn so calls can be inspected if needed.
+ */
+function makeBootstrapDeps(
+  overrides: Partial<{
+    pkgManager: "apt" | "unknown";
+    root: boolean;
+    sudoAvailable: boolean;
+    promptAnswer: boolean;
+    bootstrapOk: boolean;
+    bootstrapStderr: string;
+  }> = {},
+): BootstrapDeps {
+  const o = {
+    pkgManager: "apt" as "apt" | "unknown",
+    root: false,
+    sudoAvailable: true,
+    promptAnswer: true,
+    bootstrapOk: true,
+    bootstrapStderr: "",
+    ...overrides,
+  };
+  return {
+    detectPackageManager: vi.fn(async () => o.pkgManager),
+    checkSudoAvailable: vi.fn(async () => ({
+      root: o.root,
+      sudoAvailable: o.sudoAvailable,
+    })),
+    promptAutoInstallAnsible: vi.fn(async () => o.promptAnswer),
+    bootstrapAnsibleApt: vi.fn(async () =>
+      o.bootstrapOk ? { ok: true } : { ok: false, stderr: o.bootstrapStderr },
+    ),
+  };
+}
+
+describe("applyStack bootstrap branch (CLI-029)", () => {
+  let tmpHome: string;
+  let originalHome: string | undefined;
+
+  beforeEach(async () => {
+    originalHome = process.env.HOME;
+    tmpHome = await mkdtemp(join(tmpdir(), "arc-bootstrap-"));
+    process.env.HOME = tmpHome;
+    promptQueue.length = 0;
+    noteCalls.length = 0;
+    cancelCalls.length = 0;
+  });
+
+  afterEach(async () => {
+    await rm(tmpHome, { recursive: true, force: true });
+    if (originalHome === undefined) {
+      // biome-ignore lint/performance/noDelete: assigning undefined coerces to "undefined" string.
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = originalHome;
+    }
+  });
+
+  it("ansible absent + apt + sudo + user-yes + bootstrap OK + retry OK → proceeds to apply", async () => {
+    const adapter = new MockAdapter();
+    let versionCallCount = 0;
+    // Custom exec : first VERSION_CMD call returns 127 (absent), second returns OK.
+    adapter.exec = vi.fn(async (cmd: string) => {
+      if (cmd === VERSION_CMD) {
+        versionCallCount += 1;
+        if (versionCallCount === 1) {
+          return { stdout: "", stderr: "not found", exitCode: 127, durationMs: 0 };
+        }
+        return {
+          stdout: "ansible-playbook [core 2.16.3]\n",
+          stderr: "",
+          exitCode: 0,
+          durationMs: 0,
+        };
+      }
+      return { stdout: "", stderr: "", exitCode: 0, durationMs: 0 };
+    }) as never;
+
+    const code = await applyStack(sampleConfig, adapter, {
+      composers: dummyComposers(),
+      onAnsibleLine: () => {},
+      loader: noopLoader,
+      bootstrapDeps: makeBootstrapDeps({ promptAnswer: true, bootstrapOk: true }),
+    });
+    expect(code).toBe(EXIT_OK);
+    expect(versionCallCount).toBe(2);
+    expect(cancelCalls).not.toContain(ANSIBLE_NOT_INSTALLED_MESSAGE);
+  });
+
+  it("ansible absent + bootstrap OK but retry still 127 → cancel ANSIBLE_NOT_INSTALLED_MESSAGE", async () => {
+    const adapter = new MockAdapter();
+    adapter.programExec(VERSION_CMD, {
+      exitCode: 127,
+      stderr: "/bin/sh: ansible-playbook: command not found",
+    });
+    const code = await applyStack(sampleConfig, adapter, {
+      composers: dummyComposers(),
+      onAnsibleLine: () => {},
+      loader: noopLoader,
+      bootstrapDeps: makeBootstrapDeps({ promptAnswer: true, bootstrapOk: true }),
+    });
+    expect(code).toBe(EXIT_ENV_ERROR);
+    expect(cancelCalls).toContain(ANSIBLE_NOT_INSTALLED_MESSAGE);
+  });
+
+  it("ansible absent + user says no → cancel ANSIBLE_NOT_INSTALLED_MESSAGE, no bootstrap call", async () => {
+    const adapter = new MockAdapter();
+    adapter.programExec(VERSION_CMD, { exitCode: 127, stderr: "not found" });
+    const deps = makeBootstrapDeps({ promptAnswer: false });
+    const code = await applyStack(sampleConfig, adapter, {
+      composers: dummyComposers(),
+      onAnsibleLine: () => {},
+      loader: noopLoader,
+      bootstrapDeps: deps,
+    });
+    expect(code).toBe(EXIT_ENV_ERROR);
+    expect(cancelCalls).toContain(ANSIBLE_NOT_INSTALLED_MESSAGE);
+    expect(deps.bootstrapAnsibleApt).not.toHaveBeenCalled();
+  });
+
+  it("ansible absent + apt unknown (Fedora-like) → cancel, no prompt shown", async () => {
+    const adapter = new MockAdapter();
+    adapter.programExec(VERSION_CMD, { exitCode: 127, stderr: "not found" });
+    const deps = makeBootstrapDeps({ pkgManager: "unknown" });
+    const code = await applyStack(sampleConfig, adapter, {
+      composers: dummyComposers(),
+      onAnsibleLine: () => {},
+      loader: noopLoader,
+      bootstrapDeps: deps,
+    });
+    expect(code).toBe(EXIT_ENV_ERROR);
+    expect(deps.promptAutoInstallAnsible).not.toHaveBeenCalled();
+    expect(cancelCalls).toContain(ANSIBLE_NOT_INSTALLED_MESSAGE);
+  });
+
+  it("ansible absent + non-root + no sudo → cancel, no prompt shown", async () => {
+    const adapter = new MockAdapter();
+    adapter.programExec(VERSION_CMD, { exitCode: 127, stderr: "not found" });
+    const deps = makeBootstrapDeps({ root: false, sudoAvailable: false });
+    const code = await applyStack(sampleConfig, adapter, {
+      composers: dummyComposers(),
+      onAnsibleLine: () => {},
+      loader: noopLoader,
+      bootstrapDeps: deps,
+    });
+    expect(code).toBe(EXIT_ENV_ERROR);
+    expect(deps.promptAutoInstallAnsible).not.toHaveBeenCalled();
+    expect(cancelCalls).toContain(ANSIBLE_NOT_INSTALLED_MESSAGE);
+  });
 });

@@ -197,6 +197,24 @@ ADR-0011 A3, choix cohérents avec contexte existant) :
   1b → bootstrap → retry `assertAnsibleInstalled`). Test seam dans
   `ApplyStackOptions` pour DI.
 
+### 2026-05-13 — 1c livrée (intégration apply.ts)
+
+- **apply.ts** : imports 1a/1b, nouvelle interface `BootstrapDeps` +
+  `DEFAULT_BOOTSTRAP_DEPS`, `ApplyStackOptions.bootstrapDeps` (test seam),
+  helper interne `ensureAnsible` (isole la logique bootstrap : detect →
+  sudo → prompt → install → retry une fois). Catch original remplacé par
+  appel `ensureAnsible` + check `null` → `cancel(ANSIBLE_NOT_INSTALLED_MESSAGE)`.
+- **apply.test.ts** : helper `makeBootstrapDeps` (factory configurable
+  par test) + nouveau describe "applyStack bootstrap branch (CLI-029)"
+  avec 5 tests couvrant les 5 paths : success-retry, retry-fail,
+  user-no, apt-unknown, sudo-absent.
+- Décisions actées D-1c-1/2/3 (retry une fois / bootstrapDeps unique /
+  fallback message inchangé).
+- **Next : 1d** — smoke E2E sur la VM VMware Ubuntu 24.04 (utilisateur
+  exécute `sudo apt remove -y ansible && arc setup --apply` → confirme
+  le prompt → mesure le time-to-stack-ready). 1e (doc + tag v0.1.0
+  stable) suit derrière.
+
 ## Fichiers concernés (estimation)
 
 ### Création

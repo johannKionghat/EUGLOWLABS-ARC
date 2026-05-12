@@ -16,7 +16,9 @@ import {
   generateSandboxCompose,
 } from "../templates/index.js";
 import { VERSION } from "../version.js";
+import { bootstrapAnsibleApt, promptAutoInstallAnsible } from "./bootstrap.js";
 import { EXIT_CANCELLED, EXIT_ENV_ERROR, EXIT_OK } from "./exit-codes.js";
+import { checkSudoAvailable, detectPackageManager } from "./prerequisites.js";
 import {
   type ArcState,
   type LoadStateResult,
@@ -102,6 +104,33 @@ export interface AnsibleVersion {
   /** Set when the detected version is below {@link ANSIBLE_RECOMMENDED_MIN}. */
   warning?: string;
 }
+
+/**
+ * Test seam : the 4 prerequisites/bootstrap functions consumed by
+ * {@link applyStack} when handling {@link AnsibleNotInstalledError}.
+ * Default values point at the production implementations from
+ * `prerequisites.ts` and `bootstrap.ts`. Tests inject a custom
+ * `BootstrapDeps` via {@link ApplyStackOptions.bootstrapDeps} to drive
+ * the bootstrap branch without touching the real adapter or @clack
+ * prompt.
+ *
+ * Single optional field on `ApplyStackOptions` rather than four
+ * separate ones — keeps the API surface flat and the DI point clear.
+ * CLI-029 1c.
+ */
+export interface BootstrapDeps {
+  detectPackageManager: typeof detectPackageManager;
+  checkSudoAvailable: typeof checkSudoAvailable;
+  promptAutoInstallAnsible: typeof promptAutoInstallAnsible;
+  bootstrapAnsibleApt: typeof bootstrapAnsibleApt;
+}
+
+const DEFAULT_BOOTSTRAP_DEPS: BootstrapDeps = {
+  detectPackageManager,
+  checkSudoAvailable,
+  promptAutoInstallAnsible,
+  bootstrapAnsibleApt,
+};
 
 /**
  * Verify that `ansible-playbook` is callable on the host and capture
@@ -252,6 +281,66 @@ export interface ApplyStackOptions {
    * to keep `~/.arc/playbooks/` untouched. DIST-001 1a-2.
    */
   loader?: PlaybooksLoader;
+  /**
+   * Test seam : inject custom prerequisites/bootstrap deps. Defaults
+   * to the production functions (apt detection, sudo check, @clack
+   * prompt, apt-get install). CLI-029 1c.
+   */
+  bootstrapDeps?: BootstrapDeps;
+}
+
+/**
+ * Verify Ansible is callable on the host, with the CLI-029 auto-bootstrap
+ * branch on failure :
+ *
+ *   1. Try `assertAnsibleInstalled`. On success → return version (warning
+ *      surfaced by the caller).
+ *   2. On `AnsibleNotInstalledError`, attempt auto-bootstrap :
+ *        a. Detect package manager. If 'unknown' (Fedora/Arch/...) →
+ *           give up, return null (caller falls back to legacy message).
+ *        b. Detect sudo. If non-root AND sudo absent → give up.
+ *        c. Prompt the user. If they decline → give up.
+ *        d. Run `bootstrapAnsibleApt`. On failure → give up (stderr
+ *           still surfaced to user via the apt stream).
+ *        e. Retry `assertAnsibleInstalled` ONCE — catches the edge
+ *           case where apt-get reported exit 0 but did not actually
+ *           install a usable binary (rare but documented).
+ *   3. On any other Ansible error (corrupted python, etc.), rethrow
+ *      to apply.ts's outer catch which surfaces `AnsibleExecutionError`.
+ *
+ * Returns `null` when bootstrap is impossible or refused — caller then
+ * displays `ANSIBLE_NOT_INSTALLED_MESSAGE` and exits with `EXIT_ENV_ERROR`.
+ */
+async function ensureAnsible(
+  adapter: ExecutionAdapter,
+  deps: BootstrapDeps,
+): Promise<AnsibleVersion | null> {
+  try {
+    return await assertAnsibleInstalled(adapter);
+  } catch (err) {
+    if (!(err instanceof AnsibleNotInstalledError)) {
+      throw err;
+    }
+  }
+
+  const pkgManager = await deps.detectPackageManager(adapter);
+  if (pkgManager !== "apt") return null;
+
+  const sudo = await deps.checkSudoAvailable(adapter);
+  if (!sudo.root && !sudo.sudoAvailable) return null;
+
+  const userAccepted = await deps.promptAutoInstallAnsible();
+  if (!userAccepted) return null;
+
+  const sudoPrefix = sudo.root ? "" : "sudo ";
+  const bootstrap = await deps.bootstrapAnsibleApt(adapter, sudoPrefix);
+  if (!bootstrap.ok) return null;
+
+  try {
+    return await assertAnsibleInstalled(adapter);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -291,20 +380,22 @@ export async function applyStack(
   adapter: ExecutionAdapter,
   opts: ApplyStackOptions = {},
 ): Promise<number> {
-  // Step 1 — Ansible detection (always, even with --force per Décision 4.b).
-  let ansibleVersion: AnsibleVersion;
+  // Step 1 — Ansible detection with CLI-029 auto-bootstrap branch
+  // (always, even with --force per Décision 4.b).
+  const bootstrapDeps = opts.bootstrapDeps ?? DEFAULT_BOOTSTRAP_DEPS;
+  let ansibleVersion: AnsibleVersion | null;
   try {
-    ansibleVersion = await assertAnsibleInstalled(adapter);
+    ansibleVersion = await ensureAnsible(adapter, bootstrapDeps);
   } catch (err) {
-    if (err instanceof AnsibleNotInstalledError) {
-      cancel(err.message);
-      return EXIT_ENV_ERROR;
-    }
     if (err instanceof AnsibleExecutionError) {
       cancel(`✗ ansible-playbook --version failed: ${err.message}`);
       return EXIT_ENV_ERROR;
     }
     throw err;
+  }
+  if (ansibleVersion === null) {
+    cancel(ANSIBLE_NOT_INSTALLED_MESSAGE);
+    return EXIT_ENV_ERROR;
   }
   if (ansibleVersion.warning !== undefined) {
     note(`⚠️  ${ansibleVersion.warning}`);

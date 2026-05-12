@@ -181,8 +181,15 @@ function programAnsibleAbsent(): void {
         durationMs: 0,
       };
     }
-    // Any subsequent ansible-playbook invocation must NOT happen — the
-    // version probe should have aborted the run with EXIT_ENV_ERROR.
+    // CLI-029 1c : ensureAnsible probes the package manager to decide
+    // if auto-bootstrap is possible. Simulate "apt absent" so the
+    // bootstrap branch falls through immediately to the legacy
+    // ANSIBLE_NOT_INSTALLED_MESSAGE — preserves the pre-CLI-029
+    // semantics of E2E-11 (no prompt shown, exit 2).
+    if (cmd === "which apt-get") {
+      return { stdout: "", stderr: "", exitCode: 1, durationMs: 0 };
+    }
+    // Any other unexpected command after Ansible absent must NOT happen.
     throw new Error(`unexpected exec(${cmd}) after ansible-playbook absent`);
   };
 }
