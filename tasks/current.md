@@ -180,7 +180,22 @@ ADR-0011 A3, choix cohérents avec contexte existant) :
 
 ## Scratchpad
 
-(Claude met à jour pendant le travail — décisions, blockers, questions.)
+### 2026-05-13 — 1a + 1b livrées
+
+- **1a ✅** (commit `56aa7b5`) : `prerequisites.ts` pure-detection module +
+  5 tests Vitest. Exports `PackageManager`, `SudoStatus`,
+  `detectPackageManager`, `checkSudoAvailable` (short-circuit root).
+- **1b ✅** (commit en cours) : `bootstrap.ts` interactive auto-install +
+  5 tests. Exports `BootstrapResult`, `promptAutoInstallAnsible`
+  (@clack confirm avec note transparente sur les commandes exécutées),
+  `bootstrapAnsibleApt` (chaîne `&&` avec DEBIAN_FRONTEND=noninteractive,
+  stream stdout via onChunk).
+- Total tests CLI-029 ajoutés : 10 (5 + 5). Total repo passe à 195
+  (183 → 188 arc-cli, 7 shared).
+- **Next : 1c** — intégration dans `apply.ts:295-308` (catch
+  `AnsibleNotInstalledError` → détection prérequis via 1a → prompt via
+  1b → bootstrap → retry `assertAnsibleInstalled`). Test seam dans
+  `ApplyStackOptions` pour DI.
 
 ## Fichiers concernés (estimation)
 
