@@ -1,6 +1,6 @@
 {
   "name": "@euglowlabs/arc-cli",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "private": true,
   "description": "EuglowLabs ARC CLI — bootstrap and operate your self-hosted ARC stack.",
   "license": "Apache-2.0",
