@@ -11,9 +11,10 @@
   "files": ["dist", "playbooks"],
   "scripts": {
     "gen:manifest": "node ../../scripts/generate-playbooks-manifest.mjs",
-    "prebuild": "pnpm gen:manifest",
-    "pretest": "pnpm gen:manifest",
-    "pretypecheck": "pnpm gen:manifest",
+    "gen:templates-manifest": "node ../../scripts/generate-templates-manifest.mjs",
+    "prebuild": "pnpm gen:manifest && pnpm gen:templates-manifest",
+    "pretest": "pnpm gen:manifest && pnpm gen:templates-manifest",
+    "pretypecheck": "pnpm gen:manifest && pnpm gen:templates-manifest",
     "build": "tsc -p tsconfig.json && node ./scripts/copy-templates.mjs",
     "build:bin": "node ./scripts/build-binaries.mjs",
     "test": "vitest run --passWithNoTests",

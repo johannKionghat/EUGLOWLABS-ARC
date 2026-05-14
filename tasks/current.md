@@ -254,6 +254,12 @@ Audit du code existant (effectué 2026-05-14) :
   `renderTemplate(name, data)` préservée → 4 tests
   templates/*.test.ts passent sans modif. Throw explicite si template
   manquant (au lieu d'ENOENT cryptique).
-- **Next : 1c** — étendre les pre-hooks `pretypecheck`/`pretest`/`prebuild`
-  dans `packages/arc-cli/package.json` pour exécuter automatiquement
-  `pnpm gen:templates-manifest` en plus de `gen:manifest` (playbooks).
+- **1c ✅** (commit en cours) : étendu les 3 pre-hooks
+  (`prebuild`/`pretest`/`pretypecheck`) dans `packages/arc-cli/package.json`
+  pour chaîner `&& pnpm gen:templates-manifest` après `gen:manifest`.
+  Validation : suppression manuelle du manifest puis `pnpm test` →
+  manifest régénéré automatiquement avant les tests, 193 passed.
+- **Next : 1d** — bump arc-cli 0.1.0-rc.3 → 0.1.0-rc.4 + tag + push →
+  CI publish.yml → smoke utilisateur sur VM VMware Ubuntu 24.04 :
+  re-install arc → `arc setup --apply` → confirmer Step 5 (compose
+  generation) PASSE sans ENOENT et Step 7 lance ansible-playbook.
