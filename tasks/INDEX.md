@@ -97,7 +97,7 @@ Chaque tâche est estimée à **< 2h** de travail. Si une tâche déborde, la re
 
 - ✅ DIST-001 — Distribution & packaging ARC : ADR-0016 + binaire Bun standalone avec playbooks embed + install.sh + CI release `git tag v*.*.*` + hosting `install-arc.euglowlabs.com` + docs + smoke E2E install (1f-A) — `v0.1.0-rc.1` live (2026-05-12). Archive : `tasks/completed/2026-05-12-DIST-001.md`
 - ✅ **CLI-029** — `arc setup --apply` auto-bootstrap des prérequis système (Ansible via apt + @clack prompt). Scope strict atteint 2026-05-14 (5 sub-tasks : 1a/1b/1c/1c-bis/1d). ADR-0011 A3 satisfait côté Ansible. v0.1.0-rc.3 publié. **1e (tag stable v0.1.0) reporté à CLI-031** (bug compose templates non-embarqués révélé pendant smoke 1d). Archive : `tasks/completed/2026-05-14-CLI-029.md`
-- 🟠 **CLI-031** — Embed compose templates Eta (`docker-compose.{prod,sandbox,agents}.yml.eta`) dans le binaire Bun compilé via codegen manifest (pattern DIST-001 1a-2). **Bloque tag stable v0.1.0**. ~2h sur 5 sub-tasks. `tasks/backlog/CLI-031-embed-compose-templates-in-binary.md`
+- 🟡 **CLI-031** — Embed compose templates Eta (`docker-compose.{prod,sandbox,agents}.yml.eta` + `env.eta`) dans le binaire Bun compilé via codegen manifest (pattern DIST-001 1a-2). **Bloque tag stable v0.1.0**. ~2h sur 5 sub-tasks. **En cours — 2026-05-14.**
 - ⬜ DIST-002 — Cosign + Sigstore signing *(backlog post-Chantier-1)*
 - ⬜ DIST-003 — `arc self-update` auto-upgrade command *(backlog post-Chantier-1)*
 - ⬜ DIST-004 — Release darwin x64/arm64 + windows x64 *(backlog post-bêta, sur demande communauté)*

@@ -17,7 +17,8 @@
       "**/out",
       "**/.infra",
       "packages/arc-agent/**",
-      "packages/arc-cli/src/playbooks-manifest.ts"
+      "packages/arc-cli/src/playbooks-manifest.ts",
+      "packages/arc-cli/src/templates-manifest.ts"
     ]
   },
   "formatter": {
