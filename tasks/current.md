@@ -239,3 +239,21 @@ Audit du code existant (effectué 2026-05-14) :
 - Le manifest sera embarqué via `bun build --compile` exactement comme
   `playbooks-manifest.ts` — pas de config Bun particulière requise
   (les fichiers `.ts` du package sont naturellement bundlés).
+
+## Scratchpad
+
+### 2026-05-14 — 1a + 1b livrées
+
+- **1a ✅** (commit `4770aa7`) : `scripts/generate-templates-manifest.mjs`
+  + `.gitignore` + `biome.json` ignore. 4 templates manifested
+  (env.eta + docker-compose.{prod,sandbox,agents}.yml.eta). Pattern
+  identique DIST-001 1a-2 playbooks-manifest.
+- **1b ✅** (commit en cours) : refactor
+  `packages/arc-cli/src/templates/render.ts` pour consommer
+  `TEMPLATES_MANIFEST` au lieu de `readFileSync`. Signature
+  `renderTemplate(name, data)` préservée → 4 tests
+  templates/*.test.ts passent sans modif. Throw explicite si template
+  manquant (au lieu d'ENOENT cryptique).
+- **Next : 1c** — étendre les pre-hooks `pretypecheck`/`pretest`/`prebuild`
+  dans `packages/arc-cli/package.json` pour exécuter automatiquement
+  `pnpm gen:templates-manifest` en plus de `gen:manifest` (playbooks).
